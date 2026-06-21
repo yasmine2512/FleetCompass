@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  # 1. The Redis Cache Instance (Used by BullMQ)
+  redis:
+    image: redis:7-alpine
+    container_name: fleet_redis
+    ports:
+      - "6379:6379"
+    networks:
+      - fleet_network
+    restart: unless-stopped
+
+  # 2. Your NestJS Fleet Application
+  # api:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #   container_name: fleet_nestjs_app
+  #   ports:
+  #     - `${PORT}:${PORT}`
+  #   environment:
+  #     - PORT=${PORT}
+  #     - REDIS_HOST=redis
+  #     - REDIS_PORT=6379
+  #     - DATABASE_URL=${DATABASE_URL}
+  #   depends_on:
+  #     - redis
+  #   networks:
+  #     - fleet_network
+  #   restart: unless-stopped
+
+networks:
+  fleet_network:
+    driver: bridge
