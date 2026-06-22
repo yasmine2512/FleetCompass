@@ -5,12 +5,12 @@ import { WebSocketGateway, SubscribeMessage, MessageBody, ConnectedSocket } from
 import { Queue } from 'bullmq';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Server, Socket } from 'socket.io';
-
 @Injectable()
-export class FleetService {
+export class FleetService{
   constructor(
     @InjectQueue('locationIngestion') private readonly locationQueue: Queue,
   ) {}
+
   async create(data: CreateFleetDto,client: Socket, server: Server) {
     try {
       const { driverId, latitude, longitude, timestamp } = data;
@@ -24,6 +24,8 @@ export class FleetService {
         latitude,
         longitude,
         timestamp: timestamp || new Date().toISOString(),
+        removeOnComplete: true,
+        removeOnFail: true,
       });
 
       client.emit('locationQueued', {
