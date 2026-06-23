@@ -20,7 +20,6 @@ function useScriptsLoaded(srcs: string[]) {
   }, []);
   return loaded;
 }
-
 function nowHHMMSS() {
   return new Date().toTimeString().slice(0, 8);
 }
@@ -51,8 +50,6 @@ const LOG_MSGS: Array<(d: Driver) => string> = [
     vy: Math.sin(angle) * speed,
     speed: Math.floor(Math.random() * 30 + 25),
     status: STATUSES[Math.floor(Math.random() * STATUSES.length)],
-    // dLat: (Math.random() - 0.5) * 0.0003,
-    // dLng: (Math.random() - 0.5) * 0.0004,
     order: `ORD-${10000 + i * 317}`,
      } });
 }
@@ -96,43 +93,33 @@ function FleetCompassApp() {
       tickRef.current += 1;
       const tick = tickRef.current;
       /* move drivers — the only state change requested */
-     setDrivers(prev =>
-  prev.map(d => {
+     setDrivers(prev =>  prev.map(d => {
     let { lat, lng, vx, vy, speed, status } = d;
     // ── individual steering (small randomness per driver)
     const steerStrength = 0.00003;
-
     vx += (Math.random() - 0.5) * steerStrength;
     vy += (Math.random() - 0.5) * steerStrength;
-
     const maxSpeed = 0.0008;
-
-const mag = Math.sqrt(vx * vx + vy * vy);
-if (mag > maxSpeed) {
-  vx = (vx / mag) * maxSpeed;
-  vy = (vy / mag) * maxSpeed;
+    const mag = Math.sqrt(vx * vx + vy * vy);
+    if (mag > maxSpeed) {
+      vx = (vx / mag) * maxSpeed;
+      vy = (vy / mag) * maxSpeed;
 }
-    // ── move using THEIR OWN velocity (no normalization!)
+// ── move using THEIR OWN velocity (no normalization!)
     lat += vy;
     lng += vx;
-
     // ── soft bounce boundaries
     const latMin = 40.68, latMax = 40.75;
     const lngMin = -74.07, lngMax = -73.94;
-
     if (lat > latMax || lat < latMin) vy *= -1;
     if (lng > lngMax || lng < lngMin) vx *= -1;
-
     // ── occasional direction change per driver
     if (Math.random() < 0.01) {
       const turn = (Math.random() - 0.5) * 0.6;
-
       const cos = Math.cos(turn);
       const sin = Math.sin(turn);
-
       const newVx = vx * cos - vy * sin;
       const newVy = vx * sin + vy * cos;
-
       vx = newVx;
       vy = newVy;
     }

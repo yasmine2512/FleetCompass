@@ -103,37 +103,45 @@ const driverDataRef = useRef<Map<number, Driver>>(new Map());
 
     drivers.forEach(d => {
       seen.add(d.id);
-      const color = STATUS_COLORS[d.status];
+      const color = STATUS_COLORS[d.status] ?? "#ffffff";
       const icon  = L.divIcon({ html: driverIconSvg(color), className: "", iconSize: [28,28], iconAnchor: [14,14], popupAnchor: [0,-18] });
         const marker = markersRef.current.get(d.id);
-      if (marker) {
+        driverDataRef.current.set(d.id, d);
+      if (marker && map.hasLayer(marker)) {
+        
         marker.setLatLng([d.lat, d.lng]);
-        // m.setIcon(icon);
+        marker.setIcon(
+      L.divIcon({
+        html: driverIconSvg(STATUS_COLORS[d.status]),
+        className: "",
+        iconSize: [28, 28],
+        iconAnchor: [14, 14],
+        popupAnchor: [0, -18],
+      })
+    );
       } else {
         const m = L.marker([d.lat, d.lng], { icon }).addTo(map);
-        m.bindPopup(
-          `<div class="driver-popup">
-              ...
-          </div>`
-        );
+        m.bindPopup(""); 
+        (m as any).driverId = d.id;
+        // driverDataRef.current.set(d.id, d);
         m.on("click", () => {
-          const latest = driverDataRef.current.get(d.id);
-          if (!latest) return;
-          m.bindPopup(
-            L.popup({ maxWidth: 220, minWidth: 180 }).setContent(
-              `<div class="driver-popup">
+           const id = (m as any).driverId;
+          const latest = driverDataRef.current.get(id);
+           if (!latest) return;
+           const color = STATUS_COLORS[latest.status] ?? "#fff";
+          const html = `<div class="driver-popup">
                 <h3>
                   <svg width="10" height="10" viewBox="0 0 10 10"><circle cx="5" cy="5" r="5" fill="${color}"/></svg>
                   ${latest.name}
                 </h3>
                 <div class="stat-row"><span>Status</span><span class="status-badge">${latest.status}</span></div>
-                <div class="stat-row"><span>Speed</span><span class="stat-val">${latest.speed} mph</span></div>
+                <div class="stat-row"><span>Speed</span><span class="stat-val">${latest.speed.toFixed(4)} mph</span></div>
                 <div class="stat-row"><span>Order</span><span class="stat-val">${latest.order}</span></div>
                 <div class="stat-row"><span>Lat / Lng</span><span class="stat-val">${latest.lat.toFixed(4)}, ${latest.lng.toFixed(4)}</span></div>
                 <div class="stat-row"><span>Signal</span><span class="stat-val" style="color:#4ade80;">Strong</span></div>
               </div>`
-            )
-          ).openPopup();
+          m.setPopupContent(html);
+           m.openPopup();
           onAddLog(`[INSPECT] ${latest.name} selected — ${latest.speed}mph, status: ${latest.status}`, "info");
         });
         markersRef.current.set(d.id, m);
