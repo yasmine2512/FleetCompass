@@ -5,6 +5,9 @@ import { WebSocketGateway, SubscribeMessage, MessageBody, ConnectedSocket } from
 import { Queue } from 'bullmq';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Server, Socket } from 'socket.io';
+import axios from 'axios';
+import * as dotenv from 'dotenv' 
+dotenv.config();
 @Injectable()
 export class FleetService{
   constructor(
@@ -28,7 +31,7 @@ export class FleetService{
         removeOnFail: true,
       });
 
-      client.emit('locationQueued', {
+      client.emit('locationQueued', {   //send  data when ready
         status: 'queued',
         driverId,
       });
@@ -40,19 +43,64 @@ export class FleetService{
 
   }
 
-  findAll() {
-    return `This action returns all fleet`;
+  async getRoute(coordinates: number[][]) {
+
+    const response = await axios.post(
+      'https://api.openrouteservice.org/v2/directions/driving-car/json',
+      {
+        coordinates
+      },
+      {headers: {
+          Authorization: process.env.ORS_API_KEY,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} fleet`;
+  async startTrip(data: CreateFleetDto, client: Socket) {
+   try {
+    const coordinates = [[data.startLongitude,data.startLatitude],
+    [data.destLongitude,data.destLatitude]]
+    const response = await axios.post(
+            'https://api.openrouteservice.org/v2/directions/driving-car/json',
+            {coordinates: coordinates},
+            {headers: {
+                    Authorization: process.env.ORS_API_KEY,
+                    'Content-Type': 'application/json'
+                }});
+    const geometry = response.data.routes[0].geometry;            
+    
+    await this.locationQueue.add('simulateTrip',
+        {
+            driverId: data.driverId,
+            geometry,
+        }
+    );
+    client.emit('tripStarted', {
+      driverId: data.driverId,
+      status: 'started',
+    });
+
+    }catch(error){
+       client.emit('error', {message: 'Failed to start trip'});
+    }
   }
 
-  update(id: number, updateFleetDto: UpdateFleetDto) {
-    return `This action updates a #${id} fleet`;
-  }
+    async findAll() {
+        return `This action returns all fleet`;
+      }
+    
+    async findOne(id: number) {
+        return `This action returns a #${id} fleet`;
+      }
+    
+    async  update(id: number, updateFleetDto: UpdateFleetDto) {
+        return `This action updates a #${id} fleet`;
+      }
+    
+    async  remove(id: number) {
+        return `This action removes a #${id} fleet`;
+      }
 
-  remove(id: number) {
-    return `This action removes a #${id} fleet`;
-  }
 }

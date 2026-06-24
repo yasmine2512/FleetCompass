@@ -6,6 +6,14 @@ export class CreateFleetDto {
     latitude! : number;
     @IsNumber()
     longitude! : number;
+    @IsNumber()
+    startLatitude!: number;
+    @IsNumber()
+    startLongitude!: number;
+    @IsNumber()
+    destLatitude!: number;
+    @IsNumber()
+    destLongitude!: number;
     @IsDate()
     timestamp! : Date;
 }

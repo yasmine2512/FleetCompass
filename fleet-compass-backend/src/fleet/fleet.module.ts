@@ -3,6 +3,7 @@ import { FleetService } from './fleet.service';
 import { FleetGateway } from './fleet.gateway';
 import { locationIngestion } from './location.processor';
 import { BullModule } from '@nestjs/bullmq';
+import { FleetController } from './fleet.controller';
 
 @Module({
   imports: [
@@ -11,5 +12,6 @@ import { BullModule } from '@nestjs/bullmq';
     }),
   ],
   providers: [FleetGateway, FleetService,locationIngestion],
+  controllers: [FleetController],
 })
 export class FleetModule {}

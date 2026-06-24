@@ -19,28 +19,22 @@ export class FleetGateway implements OnGatewayConnection{
   handleConnection(client: Socket) {
     console.log('Client connected:', client.id);
   }
+
   @SubscribeMessage('createFleet')
   async create(@MessageBody() data: CreateFleetDto, @ConnectedSocket() client: Socket) {
     return this.fleetService.create(data,client,this.server);
   }
 
-  @SubscribeMessage('findAllFleet')
-  findAll() {
-    return this.fleetService.findAll();
-  }
-
-  @SubscribeMessage('findOneFleet')
-  findOne(@MessageBody() id: number) {
-    return this.fleetService.findOne(id);
-  }
-
   @SubscribeMessage('updateFleet')
-  update(@MessageBody() updateFleetDto: UpdateFleetDto) {
-    return this.fleetService.update(updateFleetDto.id, updateFleetDto);
+    async finich(@MessageBody() data: UpdateFleetDto, @ConnectedSocket() client: Socket) {
+      return
   }
 
-  @SubscribeMessage('removeFleet')
-  remove(@MessageBody() id: number) {
-    return this.fleetService.remove(id);
+  @SubscribeMessage('startTrip')
+  async startTrip(@MessageBody() data: CreateFleetDto, @ConnectedSocket() client: Socket) {
+    return this.fleetService.startTrip(data,client);
   }
+
+// @SubscribeMessage('driverLocation')
+// @SubscribeMessage('driverStatusChanged')
 }
