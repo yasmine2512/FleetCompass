@@ -40,6 +40,7 @@ export class locationIngestion extends WorkerHost implements OnModuleInit, OnMod
     let previousTimestamp = Date.now();
     try {
     for (const point of route) {
+      try{
         console.log('Processing point:', point);
       const longitude = point[0];
       const latitude = point[1];
@@ -73,9 +74,12 @@ export class locationIngestion extends WorkerHost implements OnModuleInit, OnMod
       });
 
       previousPoint = point;
-
+      } catch (innerError) {
+    console.error('Failed to log intermediate route point, skipping to next tick:', innerError);
+  }
       await new Promise(resolve => setTimeout(resolve, 1000));
     }
+
       console.log('Trip finished');
 
       await this.dbClient.query(

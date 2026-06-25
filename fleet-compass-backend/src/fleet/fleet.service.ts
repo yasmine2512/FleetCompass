@@ -162,9 +162,50 @@ export class FleetService {
       `,
       [id],
     );
-
     return {
       message: 'Trip deleted successfully',
     };
   }
+
+  async findAllDrivers(){
+    await this.dbClient.query(
+      `SELECT * FROM drivers `
+    )
+  }
+
+
+  async findOneDriver(id: number){
+    await this.dbClient.query(
+      `SELECT 
+        ST_X(dl.position::geometry) as longitude,
+        ST_Y(dl.position::geometry) as latitude,
+        dl.speed,
+        dl.created_at
+     FROM driver_locations dl
+     INNER JOIN trips t ON dl.trip_id = t.id
+     WHERE dl.driver_id = $1 
+       AND t.status = 'active'
+     ORDER BY dl.created_at DESC
+     LIMIT 1`,
+    [id]
+    )
+  }
+
+  async findActiveFleet() {
+  const result = await this.dbClient.query(`
+    SELECT DISTINCT ON (dl.driver_id)
+      dl.driver_id,
+      dl.trip_id,
+      t.order_name,
+      ST_X(dl.position::geometry) as longitude,
+      ST_Y(dl.position::geometry) as latitude,
+      dl.speed,
+      dl.created_at
+    FROM driver_locations dl
+    JOIN trips t ON dl.trip_id = t.id
+    WHERE t.status = 'active'
+    ORDER BY dl.driver_id, dl.created_at DESC
+  `);
+  return result.rows;
+}
 }

@@ -20,6 +20,21 @@ export class FleetController {
         return this.fleetService.findAll();
     }
 
+    @Get('drivers')
+    findAllDrivers(){
+        return this.fleetService.findAllDrivers();
+    }
+
+    @Get('drivers/:id')
+    findOneDriver(@Param('id') id:string){
+        return this.fleetService.findOneDriver(+id);
+    }
+
+    @Get('active')
+    getActiveDrivers(){
+        return this.fleetService.findActiveFleet();
+    }
+
     @Get(':id')
     findOne(@Param('id') id: string) {
         return this.fleetService.findOne(+id);
