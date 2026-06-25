@@ -26,7 +26,6 @@ WORKDIR /app
 # Copy production dependencies and built application from stage 1
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/public ./public
 COPY --from=builder /app/package*.json ./
 
 # Expose the API/WebSocket port (3000)

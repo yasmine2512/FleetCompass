@@ -3,6 +3,7 @@ import { Controller,Body } from '@nestjs/common';
 import { CreateFleetDto } from './dto/create-fleet.dto';
 import { UpdateFleetDto } from './dto/update-fleet.dto';
 import { FleetService } from './fleet.service';
+import { UpdateTripStatusDto } from './dto/update-fleet-status.dto';
 @Controller('fleets')
 export class FleetController {
  constructor(private readonly fleetService: FleetService) {}
@@ -20,18 +21,18 @@ export class FleetController {
     }
 
     @Get(':id')
-    findOne(@Body() id: number) {
-        return this.fleetService.findOne(id);
+    findOne(@Param('id') id: string) {
+        return this.fleetService.findOne(+id);
     }
 
-    @Patch(':id')
-    update(@Body() updateFleetDto: UpdateFleetDto) {
-        return this.fleetService.update(updateFleetDto.id, updateFleetDto);
+    @Patch(':id/status')
+    update( @Param('id') id: string,@Body() dto: UpdateTripStatusDto,) {
+        return this.fleetService.update(+id,dto);
     }
 
     @Delete(':id')
-    remove(@Body() id: number) {
-        return this.fleetService.remove(id);
+    remove(@Param('id') id: string) {
+        return this.fleetService.remove(+id);
     }
 
 }

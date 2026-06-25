@@ -1,19 +1,18 @@
-import { IsNumber, IsDateString, IsDate } from 'class-validator';
+import { IsNumber, IsDateString, IsDate, isString ,IsOptional} from 'class-validator';
 export class CreateFleetDto {
-    @IsNumber()
-    driverId! : number;
-    @IsNumber()
-    latitude! : number;
-    @IsNumber()
-    longitude! : number;
-    @IsNumber()
-    startLatitude!: number;
-    @IsNumber()
-    startLongitude!: number;
-    @IsNumber()
-    destLatitude!: number;
-    @IsNumber()
-    destLongitude!: number;
-    @IsDate()
-    timestamp! : Date;
+  @IsNumber()
+  driverId!: number;
+  
+  orderName!: string;
+  @IsNumber()
+  startLatitude!: number;
+  @IsNumber()
+  startLongitude!: number;
+  @IsNumber()
+  destLatitude!: number;
+  @IsNumber()
+  destLongitude!: number;
+  @IsDate()
+  @IsOptional()
+  started_at?: Date;
 }
