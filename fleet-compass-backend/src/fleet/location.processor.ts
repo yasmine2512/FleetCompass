@@ -49,12 +49,17 @@ export class locationIngestion extends WorkerHost implements OnModuleInit, OnMod
       if (previousPoint) {
         const now = Date.now();
 
-        const distance = this.calculateDistance(previousPoint[1],previousPoint[0],latitude,longitude,);
-
         const timeElapsed = (now - previousTimestamp) / 1000;
+        const distanceResult = await this.dbClient.query(
+            `SELECT ST_Distance(
+              ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography,
+              ST_SetSRID(ST_MakePoint($3, $4), 4326)::geography
+            ) as distance`,
+            [previousPoint[0], previousPoint[1], longitude, latitude]
+          );
 
+        const distance = parseFloat(distanceResult.rows[0].distance);
         speed = (distance / timeElapsed) * 3.6;
-
         previousTimestamp = now;
       }
 
@@ -103,19 +108,4 @@ export class locationIngestion extends WorkerHost implements OnModuleInit, OnMod
     }
   }
 
-  private calculateDistance(lat1: number,lon1: number,lat2: number,lon2: number,): number {
-    const R = 6371000; // Earth radius in meters
-
-    const dLat = ((lat2 - lat1) * Math.PI) / 180;
-    const dLon = ((lon2 - lon1) * Math.PI) / 180;
-
-    const a =
-      Math.sin(dLat / 2) ** 2 +
-      Math.cos((lat1 * Math.PI) / 180) *
-        Math.cos((lat2 * Math.PI) / 180) *
-        Math.sin(dLon / 2) ** 2;
-
-    return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-  }
 }

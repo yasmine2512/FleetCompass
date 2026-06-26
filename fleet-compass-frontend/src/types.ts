@@ -24,3 +24,34 @@ export interface KPI {
   ingestion: number;
   latency: number;
 }
+
+export interface FormState {
+  name: string;
+  fleet: string;
+  email: string;
+  password: string;
+  confirm: string;
+}
+
+export interface Errors {
+  name?: string;
+  fleet?: string;
+  email?: string;
+  password?: string;
+  confirm?: string;
+  form?: string;
+}
+
+export type Field = "email" | "password" | "name" | "confirm" | "fleet";
+export interface InputProps {
+  id: Field;
+  label: string;
+  type?: string;
+  value: string;
+  placeholder: string;
+  error?: string;
+  icon: React.ReactNode;
+  onChange: (f: Field, v: string) => void;
+  rightSlot?: React.ReactNode;
+  autoComplete?: string;
+}

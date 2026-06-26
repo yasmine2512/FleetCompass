@@ -197,3 +197,25 @@ code {
     flex-direction:column ;
     overflow: hidden;
   }
+
+   @keyframes drawCheck {
+          from { stroke-dashoffset: 40; stroke-dasharray: 40; }
+          to   { stroke-dashoffset: 0;  stroke-dasharray: 40; }
+        }
+        @keyframes fc-fade-up {
+          from { opacity: 0; transform: translateY(14px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        .fc-fade-up { animation: fc-fade-up 0.45s ease forwards; }
+        .fc-pulse-dot {
+          width: 7px; height: 7px; border-radius: 50%; background: #22c55e; position: relative; flex-shrink: 0;
+        }
+        .fc-pulse-dot::after {
+          content: ''; position: absolute; inset: -4px; border-radius: 50%;
+          border: 1.5px solid #22c55e;
+          animation: fc-pulse-ring 1.6s ease-out infinite;
+        }
+        @keyframes fc-pulse-ring {
+          0%   { transform: scale(0.5); opacity: 1; }
+          100% { transform: scale(2.2); opacity: 0; }
+        }

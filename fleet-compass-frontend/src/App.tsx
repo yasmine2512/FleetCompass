@@ -1,13 +1,16 @@
 import { useState } from 'react'
-
+import { Route,Routes} from 'react-router-dom'
 import './App.css'
 import FleetCompassApp from './FleetCompassApp'
+import FleetCompassAuth from './Fleetcompassauth'
 function App() {
-  const [count, setCount] = useState(0)
 
   return (
     <>
-        <FleetCompassApp></FleetCompassApp>
+  <Routes>
+    <Route path='/Auth' element={<FleetCompassAuth />}/>
+    <Route path='/App' element={<FleetCompassApp />}/>
+  </Routes>
     </>
   )
 }
