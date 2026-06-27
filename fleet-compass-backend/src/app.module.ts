@@ -3,6 +3,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { FleetModule } from './fleet/fleet.module';
 import { BullModule } from '@nestjs/bullmq';
+import { UserModule } from './user/user.module';
 import * as dotenv from 'dotenv'
 dotenv.config();
 @Module({
@@ -13,6 +14,7 @@ dotenv.config();
         port: parseInt(process.env.REDIS_PORT!, 10) || 6379,
       },
     }),
+    UserModule,
   ],
   controllers: [AppController],
   providers: [AppService],
