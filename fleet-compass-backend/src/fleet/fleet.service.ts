@@ -9,21 +9,17 @@ import { CreateFleetDto } from './dto/create-fleet.dto';
 import { UpdateFleetDto } from './dto/update-fleet.dto';
 import { UpdateTripStatusDto } from './dto/update-fleet-status.dto';
 import { locationIngestion } from './location.processor';
+import { DatabaseService } from 'src/database/database.service';
 @Injectable()
 export class FleetService {
-  private dbClient: pg.Client;
 
   constructor(
+    private readonly databaseService:DatabaseService ,
     @InjectQueue('locationIngestion')
     private readonly locationQueue: Queue,
     @InjectQueue('routeIngestion')
-    private readonly routeQueue: Queue,
+    private readonly routeQueue: Queue,    
   ) {
-    this.dbClient = new pg.Client({
-      connectionString: process.env.DATABASE_URL,
-    });
-
-    this.dbClient.connect();
   }
 
   async getRoute(coordinates: number[][]) {
@@ -49,7 +45,7 @@ export class FleetService {
       ];
 
       const startedAt = data.started_at || new Date()
-      const tripResult = await this.dbClient.query(
+      const tripResult = await this.databaseService.pool.query(
         `INSERT INTO trips
         (driver_id,order_name,start_position, destination_position,status,started_at)
         VALUES ($1,$2,ST_SetSRID(ST_MakePoint($3, $4), 4326)::geography,
@@ -63,7 +59,7 @@ export class FleetService {
       const tripId = tripResult.rows[0].id;
       client.join(`trip:${tripId}`);
 
-      await this.dbClient.query(
+      await this.databaseService.pool.query(
       `UPDATE drivers SET status = 'unavailable' WHERE id = $1`,
       [data.driverId]
     );
@@ -94,7 +90,7 @@ export class FleetService {
   }
 
   async findAll() {
-    const result = await this.dbClient.query(`
+    const result = await this.databaseService.pool.query(`
       SELECT *
       FROM trips
       ORDER BY started_at DESC
@@ -105,7 +101,7 @@ export class FleetService {
 
   async findOne(id: number) {
 
-    const tripResult = await this.dbClient.query(
+    const tripResult = await this.databaseService.pool.query(
     `SELECT 
       id,
       driver_id,
@@ -121,7 +117,7 @@ export class FleetService {
     [id]
   );
 
-  const locationsResult = await this.dbClient.query(
+  const locationsResult = await this.databaseService.pool.query(
     `SELECT 
       ST_Y(position::geometry) as latitude,
       ST_X(position::geometry) as longitude,
@@ -140,7 +136,7 @@ export class FleetService {
   }
 
   async update(id: number,status: UpdateTripStatusDto) {
-    await this.dbClient.query(
+    await this.databaseService.pool.query(
       `
       UPDATE trips
       SET status = $1
@@ -155,7 +151,7 @@ export class FleetService {
   }
 
   async remove(id: number) {
-    await this.dbClient.query(
+    await this.databaseService.pool.query(
       `
       DELETE FROM trips
       WHERE id = $1
@@ -168,14 +164,15 @@ export class FleetService {
   }
 
   async findAllDrivers(){
-    await this.dbClient.query(
+   const result = await this.databaseService.pool.query(
       `SELECT * FROM drivers `
     )
+    return result.rows;
   }
 
 
   async findOneDriver(id: number){
-    await this.dbClient.query(
+   const result = await this.databaseService.pool.query(
       `SELECT 
         ST_X(dl.position::geometry) as longitude,
         ST_Y(dl.position::geometry) as latitude,
@@ -189,10 +186,11 @@ export class FleetService {
      LIMIT 1`,
     [id]
     )
+    return result.rows;
   }
 
   async findActiveFleet() {
-  const result = await this.dbClient.query(`
+  const result = await this.databaseService.pool.query(`
     SELECT DISTINCT ON (dl.driver_id)
       dl.driver_id,
       dl.trip_id,

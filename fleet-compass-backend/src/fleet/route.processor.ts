@@ -4,7 +4,7 @@ import { FleetService } from './fleet.service';
 import { InjectQueue } from '@nestjs/bullmq';
 import { FleetEventsService } from './fleet-events.service';
 import { Queue } from 'bullmq';
-import pg from 'pg';
+import { DatabaseService } from 'src/database/database.service';
 
 
 @Processor('routeIngestion', {
@@ -14,16 +14,15 @@ import pg from 'pg';
   },
 })
 export class RouteProcessor extends WorkerHost {
-  private dbClient: pg.Client;
+
 
   constructor(
     private readonly fleetService: FleetService,
     private readonly fleetEventsService: FleetEventsService,
     @InjectQueue('locationIngestion') private readonly locationQueue: Queue,
+    private readonly databaseService:DatabaseService
   ) {
     super();
-    this.dbClient = new pg.Client({ connectionString: process.env.DATABASE_URL });
-    this.dbClient.connect();
   }
 
   async process(job: Job<any>): Promise<any> {
@@ -32,7 +31,7 @@ export class RouteProcessor extends WorkerHost {
     try {
       const route = await this.fleetService.getRoute(coordinates);
 
-      await this.dbClient.query(
+      await this.databaseService.pool.query(
         `UPDATE trips SET status = 'active' WHERE id = $1`,
         [tripId]
       );
@@ -57,7 +56,7 @@ export class RouteProcessor extends WorkerHost {
 
     } catch (err) {
       console.error(`Failed to process throttled route for trip ${tripId}:`, err);
-      await this.dbClient.query(`UPDATE trips SET status = 'failed' WHERE id = $1`, [tripId]);
+      await this.databaseService.pool.query(`UPDATE trips SET status = 'failed' WHERE id = $1`, [tripId]);
       this.fleetEventsService.emitToRoom(`trip:${tripId}`, 'error', {
         message: 'Failed to start trip due to routing error',
       });

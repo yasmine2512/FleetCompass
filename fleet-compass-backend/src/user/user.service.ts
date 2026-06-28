@@ -6,27 +6,18 @@ import pg from 'pg';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { Response } from 'express';
 import { UnauthorizedException ,BadRequestException } from '@nestjs/common';
+import { DatabaseService } from 'src/database/database.service';
 @Injectable()
 export class UserService {
-  private dbClient: pg.Client;
-  private supabase: SupabaseClient;
 
-  constructor(){
-  this.dbClient = new pg.Client({
-        connectionString: process.env.DATABASE_URL,
-      });
-  this.dbClient.connect(); 
-  this.supabase = createClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    );
-    }
+
+  constructor(private readonly databaseService:DatabaseService){}
   
       
   async login(loginUserDto: LoginUserDto,res :Response) {
 
   const { data, error } =
-    await this.supabase.auth.signInWithPassword({
+    await this.databaseService.supabase.auth.signInWithPassword({
       email: loginUserDto.email,
       password: loginUserDto.password,
     });
@@ -60,7 +51,7 @@ export class UserService {
   async signup(createUserDto: CreateUserDto,res:Response) {
 
    const { data, error } =
-    await this.supabase.auth.signUp({
+    await this.databaseService.supabase.auth.signUp({
       email: createUserDto.email,
       password: createUserDto.password,
       options: {
@@ -107,4 +98,13 @@ export class UserService {
   async remove(id: number) {
     return `This action removes a #${id} user`;
   }
+
+  async logout(res:Response){
+res.clearCookie('access_token');
+  res.clearCookie('refresh_token');
+
+  return {
+    message: 'Logged out'
+  };
+}
 }

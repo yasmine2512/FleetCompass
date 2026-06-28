@@ -1,1 +1,0 @@
-truncate table trips restart identity cascade;

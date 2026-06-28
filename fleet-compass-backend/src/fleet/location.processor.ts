@@ -3,29 +3,19 @@ import { Job } from 'bullmq';
 import {Injectable, OnModuleDestroy,OnModuleInit } from '@nestjs/common';
 import pg from 'pg';
 import { FleetEventsService } from './fleet-events.service';
+import { DatabaseService } from 'src/database/database.service';
 @Processor('locationIngestion')
 @Injectable()
-export class locationIngestion extends WorkerHost implements OnModuleInit, OnModuleDestroy {
+export class locationIngestion extends WorkerHost{
 
-  private dbClient!: pg.Client;
 
   constructor(
     private readonly fleetEventsService: FleetEventsService,
+    private readonly databaseService:DatabaseService
   ) {
     super();
   }
 
-  async onModuleInit() {
-    this.dbClient = new pg.Client({
-      connectionString: process.env.DATABASE_URL,
-    });
-    await this.dbClient.connect();
-    console.log('NestJS Worker connected successfully to Supabase PostgreSQL');
-  }
-
-  async onModuleDestroy() {
-    await this.dbClient.end();
-  }
 
   async process(job: Job<any>): Promise<any> {
     console.log('PROCESSOR CALLED');
@@ -50,7 +40,7 @@ export class locationIngestion extends WorkerHost implements OnModuleInit, OnMod
         const now = Date.now();
 
         const timeElapsed = (now - previousTimestamp) / 1000;
-        const distanceResult = await this.dbClient.query(
+        const distanceResult = await this.databaseService.pool.query(
             `SELECT ST_Distance(
               ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography,
               ST_SetSRID(ST_MakePoint($3, $4), 4326)::geography
@@ -63,7 +53,7 @@ export class locationIngestion extends WorkerHost implements OnModuleInit, OnMod
         previousTimestamp = now;
       }
 
-      await this.dbClient.query(
+      await this.databaseService.pool.query(
         `INSERT INTO driver_locations(trip_id, driver_id, position, speed)
         VALUES ($1,$2,ST_SetSRID(ST_MakePoint($3,$4),4326)::geography,
           $5)`,
@@ -87,13 +77,13 @@ export class locationIngestion extends WorkerHost implements OnModuleInit, OnMod
 
       console.log('Trip finished');
 
-      await this.dbClient.query(
+      await this.databaseService.pool.query(
       `UPDATE trips
       SET status='completed'
       WHERE id=$1`,
       [tripId]);
 
-      await this.dbClient.query(
+      await this.databaseService.pool.query(
         `UPDATE drivers SET status='available' WHERE id=$1`,
         [driverId]
       );

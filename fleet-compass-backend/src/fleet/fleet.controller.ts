@@ -1,9 +1,9 @@
-import { Delete, Get,Param,Patch,Post } from '@nestjs/common';
-import { Controller,Body } from '@nestjs/common';
+import { Delete, Get,Param,Patch,Post, Controller,Body,UseGuards  } from '@nestjs/common';
 import { CreateFleetDto } from './dto/create-fleet.dto';
 import { UpdateFleetDto } from './dto/update-fleet.dto';
 import { FleetService } from './fleet.service';
 import { UpdateTripStatusDto } from './dto/update-fleet-status.dto';
+import { AuthService } from 'src/user/auth.service';
 @Controller('fleets')
 export class FleetController {
  constructor(private readonly fleetService: FleetService) {}
@@ -26,6 +26,7 @@ export class FleetController {
     }
 
     @Get('drivers/:id')
+    @UseGuards(AuthService)
     findOneDriver(@Param('id') id:string){
         return this.fleetService.findOneDriver(+id);
     }

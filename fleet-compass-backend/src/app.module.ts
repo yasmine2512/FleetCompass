@@ -4,6 +4,7 @@ import { AppService } from './app.service';
 import { FleetModule } from './fleet/fleet.module';
 import { BullModule } from '@nestjs/bullmq';
 import { UserModule } from './user/user.module';
+import { DatabaseModule } from './database/database.module';
 import * as dotenv from 'dotenv'
 dotenv.config();
 @Module({
@@ -15,6 +16,7 @@ dotenv.config();
       },
     }),
     UserModule,
+    DatabaseModule,
   ],
   controllers: [AppController],
   providers: [AppService],

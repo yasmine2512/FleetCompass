@@ -1,5 +1,5 @@
 # --- STAGE 1: Build the Application ---
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 
 WORKDIR /app
 
@@ -19,7 +19,7 @@ RUN npm run build
 RUN npm prune --production
 
 # --- STAGE 2: Run the Application ---
-FROM node:20-alpine AS runner
+FROM node:22-alpine AS runner
 
 WORKDIR /app
 
@@ -29,7 +29,7 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/package*.json ./
 
 # Expose the API/WebSocket port (3000)
-EXPOSE 3000
+EXPOSE 3001
 
 # Run the NestJS application in production mode
 CMD ["node", "dist/main.js"]
