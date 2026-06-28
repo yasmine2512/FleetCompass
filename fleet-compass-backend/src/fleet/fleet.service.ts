@@ -37,7 +37,7 @@ export class FleetService {
     return response.data.features[0].geometry.coordinates;
   }
 
-  async startTrip(data: CreateFleetDto, client: Socket) {
+  async startTrip(data: CreateFleetDto, client: Socket,id: string) {
     try {
       const coordinates = [
         [data.startLongitude, data.startLatitude],
@@ -47,20 +47,21 @@ export class FleetService {
       const startedAt = data.started_at || new Date()
       const tripResult = await this.databaseService.pool.query(
         `INSERT INTO trips
-        (driver_id,order_name,start_position, destination_position,status,started_at)
+        (driver_id,order_name,start_position, destination_position,status,started_at,user_id)
         VALUES ($1,$2,ST_SetSRID(ST_MakePoint($3, $4), 4326)::geography,
-        ST_SetSRID(ST_MakePoint($5, $6), 4326)::geography,$7,$8)
+        ST_SetSRID(ST_MakePoint($5, $6), 4326)::geography,$7,$8,$9)
         RETURNING id`,
         [data.driverId,data.orderName,data.startLongitude,
           data.startLatitude,data.destLongitude,data.destLatitude,
-          'pending_route',startedAt,
+          'pending_route',startedAt,id,
         ],
       );
       const tripId = tripResult.rows[0].id;
       client.join(`trip:${tripId}`);
 
       await this.databaseService.pool.query(
-      `UPDATE drivers SET status = 'unavailable' WHERE id = $1`,
+      `UPDATE drivers SET status = 'unavailable' 
+      WHERE id = $1 AND user_id = $2`,
       [data.driverId]
     );
 
@@ -89,17 +90,18 @@ export class FleetService {
     }
   }
 
-  async findAll() {
+  async findAll(id: string) {
     const result = await this.databaseService.pool.query(`
       SELECT *
       FROM trips
+      WHERE user_id = $1
       ORDER BY started_at DESC
-    `);
+    `,[id]);
 
     return result.rows;
   }
 
-  async findOne(id: number) {
+  async findOne(id: number,user_id: string) {
 
     const tripResult = await this.databaseService.pool.query(
     `SELECT 
@@ -113,8 +115,8 @@ export class FleetService {
       ST_X(destination_position::geometry) as destination_longitude,
       ST_Y(destination_position::geometry) as destination_latitude
     FROM trips
-    WHERE id = $1`,
-    [id]
+    WHERE id = $1 AND user_id = $2`,
+    [id,user_id]
   );
 
   const locationsResult = await this.databaseService.pool.query(
@@ -124,9 +126,9 @@ export class FleetService {
       speed,
       created_at
     FROM driver_locations
-    WHERE trip_id = $1
+    WHERE trip_id = $1 AND user_id = $2
     ORDER BY created_at ASC`,
-    [id]
+    [id,user_id]
   );
 
   return {
@@ -163,15 +165,17 @@ export class FleetService {
     };
   }
 
-  async findAllDrivers(){
+  async findAllDrivers(user_id : string){
    const result = await this.databaseService.pool.query(
-      `SELECT * FROM drivers `
+      `SELECT * FROM drivers 
+      WHERE user_id = $1`,
+      [user_id]
     )
     return result.rows;
   }
 
 
-  async findOneDriver(id: number){
+  async findOneDriver(id: number,user_id :string){
    const result = await this.databaseService.pool.query(
       `SELECT 
         ST_X(dl.position::geometry) as longitude,
@@ -181,15 +185,15 @@ export class FleetService {
      FROM driver_locations dl
      INNER JOIN trips t ON dl.trip_id = t.id
      WHERE dl.driver_id = $1 
-       AND t.status = 'active'
+       AND t.status = 'active' AND t.user_id = $2
      ORDER BY dl.created_at DESC
      LIMIT 1`,
-    [id]
+    [id,user_id]
     )
     return result.rows;
   }
 
-  async findActiveFleet() {
+  async findActiveFleet(user_id :string) {
   const result = await this.databaseService.pool.query(`
     SELECT DISTINCT ON (dl.driver_id)
       dl.driver_id,
@@ -201,9 +205,9 @@ export class FleetService {
       dl.created_at
     FROM driver_locations dl
     JOIN trips t ON dl.trip_id = t.id
-    WHERE t.status = 'active'
+    WHERE t.status = 'active' AND t.user_id = $1
     ORDER BY dl.driver_id, dl.created_at DESC
-  `);
+  `,[user_id]);
   return result.rows;
 }
 }

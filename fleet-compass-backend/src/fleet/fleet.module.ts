@@ -13,7 +13,7 @@ import { AuthService } from 'src/user/auth.service';
     BullModule.registerQueue(
       {name: 'locationIngestion'},
       { name: 'routeIngestion' }),
-      DatabaseModule,
+      DatabaseModule,AuthService
   ],
   providers: [FleetGateway, FleetService,locationIngestion,FleetEventsService,RouteProcessor],
   controllers: [FleetController],

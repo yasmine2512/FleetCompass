@@ -4,6 +4,26 @@ import KpiCard from './KpiCard';
 import Terminal from './Terminal';
 import ThroughputChart from './ThroughputChart';
 import LeafletMap from "./LeafletMap";
+import { useNavigate } from "react-router-dom";
+const [User,setUser] = useState(null);
+const navigate = useNavigate();
+useEffect(() => {
+  fetch("http://localhost:3001/user/me", {
+    credentials: "include",
+  })
+    .then(res => {
+      if (!res.ok) throw new Error();
+      return res.json();
+    })
+    .then(user => {
+      setUser(user);
+      navigate("/dashboard");
+    })
+    .catch(() => {
+      navigate("/");
+    });
+}, []);
+
 function useScriptsLoaded(srcs: string[]) {
   const [loaded, setLoaded] = useState(false);
   useEffect(() => {

@@ -2,9 +2,18 @@ import { useState, useEffect, useRef } from "react";
 import type { FormState ,Errors,Field} from "./types";
 import { GridCanvas,LogoMark,EyeIcon,StatBadge,FormInput,
 PasswordStrength, SuccessTick} from "./Components";
-
+import { useNavigate } from "react-router-dom";
+import axios from 'axios';
 type Mode = "login" | "signup";
 
+
+
+export const api = axios.create({
+  baseURL: 'http://localhost:3000',
+  withCredentials: true, // VERY IMPORTANT
+});
+
+const navigate = useNavigate();
 export default function FleetCompassAuth() {
   const [mode, setMode]           = useState<Mode>("login");
   const [form, setForm]           = useState<FormState>({ name: "", fleet: "", email: "", password: "", confirm: "" });
@@ -48,11 +57,60 @@ export default function FleetCompassAuth() {
     return Object.keys(e).length === 0;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async() => {
     if (!validate()) return;
     setLoading(true);
-    setTimeout(() => { setLoading(false); setSuccess(true); }, 1800);
+     try {
+    if (mode === "login") {
+     await handleLogin();
+    } else {
+     await handleSignup();
+    }
+  } catch (error) {
+    setErrors({form: "Something went wrong",});
+    console.log(error);
+  } finally {
+    setLoading(false);
+  }
+    // setTimeout(() => { setLoading(false); setSuccess(true); }, 1800);
   };
+
+const handleLogin = async () => {
+
+      const response = await axios.post(
+    "http://localhost:3001/user/login",
+    {
+      email: form.email,
+      password: form.password,
+    },
+    {
+      withCredentials: true, // important for HttpOnly cookies
+    }
+  );
+  setSuccess(true);
+  console.log(response.data);
+  navigate("/App");
+
+  }
+
+const handleSignup = async () => {
+
+  const response = await axios.post(
+    "http://localhost:3001/user/signup",
+    {
+      fullName: form.name,
+      fleet: form.fleet,
+      email: form.email,
+      password: form.password,
+    },
+    {
+      withCredentials: true,
+    }
+  );
+  console.log(response.data);
+  setSuccess(true);
+  navigate("/App");
+};
 
   return (
     <>
