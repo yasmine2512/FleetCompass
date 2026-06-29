@@ -261,23 +261,29 @@ function FleetCompassApp() {
     };
   
 
+const DeleteDriver = () =>{}
+const AddDriver = () =>{}
+const DeleteTrip = () =>{}
+const ShowRoute = () =>{}
 
-useEffect(() => {
-  fetch("http://localhost:3001/user/me", {
-    credentials: "include",
-  })
-    .then(res => {
-      if (!res.ok) throw new Error();
-      return res.json();
-    })
-    .then(user => {
-      setUser(user);
-      navigate("/App");
-    })
-    .catch(() => {
-      navigate("/");
-    });
-}, []);
+
+
+// useEffect(() => {
+//   fetch("http://localhost:3001/user/me", {
+//     credentials: "include",
+//   })
+//     .then(res => {
+//       if (!res.ok) throw new Error();
+//       return res.json();
+//     })
+//     .then(user => {
+//       setUser(user);
+//       navigate("/App");
+//     })
+//     .catch(() => {
+//       navigate("/");
+//     });
+// }, []);
 
   const latencyColor = kpi.latency > 30 ? "#ef4444" : kpi.latency > 20 ? "#f59e0b" : "#fbbf24";
 
@@ -338,6 +344,7 @@ useEffect(() => {
 
       {/* ── Map ── */}
       <LeafletMap
+       setDispatch={setDispatchPopup}
        drivers={drivers}
        onAddLog={pushLog}
        wizard={wizard}
@@ -389,6 +396,10 @@ useEffect(() => {
           trips={trips}
           onClose={() => setShowSearch(false)}
           onFindOnMap={handleFocusDriver}
+          onDeleteDriver={DeleteDriver}
+          onAddDriver= {AddDriver}
+          onDeleteTrip={DeleteTrip}
+          onShowRoute ={ShowRoute}
         />
       )}
 

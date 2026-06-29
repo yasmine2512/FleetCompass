@@ -98,16 +98,23 @@ export interface InputProps {
   autoComplete?: string;
 }
 
-export interface SearchPanelProps {
-  drivers: Driver[];
-  trips: Trip[];
-  onClose: () => void;
-  onFindOnMap: (d: Driver) => void;
-}
 
 export interface DispatchPopupProps {
   lat: number;
   lng: number;
   onClose: () => void;
   onStartTrip: () => void;
+}
+
+export type DriverAvailability = "Available" | "Offline" | "Unavailable";
+
+export interface SearchPanelProps {
+  drivers: Driver[];
+  trips: Trip[];
+  onClose: () => void;
+  onFindOnMap: (d: Driver) => void;
+  onDeleteDriver: (id: number) => void;
+  onAddDriver: (name: string) => void;
+  onDeleteTrip: (id: string) => void;
+  onShowRoute: (t: Trip) => void;
 }

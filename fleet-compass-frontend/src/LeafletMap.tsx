@@ -54,9 +54,15 @@ interface MapProps {
   wizard: TripWizard;
   onMapClick: (lat: number, lng: number) => void;
   onFocusDriver: (d: Driver) => void;
+  setDispatch: React.Dispatch<
+    React.SetStateAction<{
+      lat: number;
+      lng: number;
+    } | null>
+  >;
 }
 
-function LeafletMap({ drivers, onAddLog , wizard, onMapClick, onFocusDriver}: MapProps){
+function LeafletMap({drivers, onAddLog , wizard, onMapClick, onFocusDriver,setDispatch}: MapProps){
 
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef      = useRef<any>(null);
@@ -103,7 +109,34 @@ function LeafletMap({ drivers, onAddLog , wizard, onMapClick, onFocusDriver}: Ma
     //     if (dispatchRef.current) { map.removeLayer(dispatchRef.current); dispatchRef.current = null; }
     //   }, 15000);
     // });
+map.on("click", (e: L.LeafletMouseEvent) => {
+  const { lat, lng } = e.latlng;
 
+  // Remove previous dispatch marker
+  dispatchRef.current?.remove();
+
+  const icon = L.divIcon({
+    html: dispatchIconSvg(),
+    className: "",
+    iconSize: [36, 36],
+    iconAnchor: [18, 18],
+  });
+
+  dispatchRef.current = L.marker([lat, lng], { icon }).addTo(map);
+
+  // Show React popup
+  setDispatch({
+    lat,
+    lng,
+  });
+
+  onAddLog(
+    `[DISPATCH] New task created at ${lat.toFixed(
+      5
+    )}, ${lng.toFixed(5)}`,
+    "dispatch"
+  );
+});
     mapRef.current = map;
     return () => { map.remove(); mapRef.current = null; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
