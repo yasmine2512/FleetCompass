@@ -7,14 +7,8 @@ import axios from 'axios';
 type Mode = "login" | "signup";
 
 
-
-export const api = axios.create({
-  baseURL: 'http://localhost:3000',
-  withCredentials: true, // VERY IMPORTANT
-});
-
-const navigate = useNavigate();
 export default function FleetCompassAuth() {
+  const navigate = useNavigate();
   const [mode, setMode]           = useState<Mode>("login");
   const [form, setForm]           = useState<FormState>({ name: "", fleet: "", email: "", password: "", confirm: "" });
   const [errors, setErrors]       = useState<Errors>({});
@@ -48,7 +42,7 @@ export default function FleetCompassAuth() {
     if (!form.email.trim())           e.email   = "Email address is required.";
     else if (!/\S+@\S+\.\S+/.test(form.email)) e.email = "Enter a valid email address.";
     if (!form.password)               e.password = "Password is required.";
-    else if (form.password.length < 8) e.password = "Password must be at least 8 characters.";
+    // else if (form.password.length < 8) e.password = "Password must be at least 8 characters.";
     if (mode === "signup") {
       if (form.password !== form.confirm) e.confirm = "Passwords do not match.";
       if (!agreed) e.form = "You must accept the terms to continue.";
@@ -90,7 +84,6 @@ const handleLogin = async () => {
   setSuccess(true);
   console.log(response.data);
   navigate("/App");
-
   }
 
 const handleSignup = async () => {

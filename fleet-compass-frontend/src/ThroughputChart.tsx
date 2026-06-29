@@ -26,7 +26,6 @@ interface ChartProps { data: number[]; }
 function ThroughputChart({ data }: ChartProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const chartRef  = useRef<any>(null);
-//   const Chart     = (window as any).Chart;
 
   useEffect(() => {
     if (!canvasRef.current) return;

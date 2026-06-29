@@ -36,6 +36,20 @@ export class RouteProcessor extends WorkerHost {
         [tripId]
       );
 
+      const lineString = route
+      .map((p: number[]) => `${p[0]} ${p[1]}`)
+      .join(',');
+
+      await this.databaseService.pool.query(
+      `
+      INSERT INTO trip_routes (trip_id, route)
+      VALUES ($1,ST_GeomFromText($2, 4326))
+      ON CONFLICT (trip_id)
+      DO NOTHING
+      `,
+      [tripId, `LINESTRING(${lineString})`]
+    );
+
       await this.locationQueue.add('simulateTrip', {
         tripId,
         driverId,

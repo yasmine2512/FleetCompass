@@ -39,6 +39,7 @@ export class FleetService {
 
   async startTrip(data: CreateFleetDto, client: Socket,id: string) {
     try {
+      console.log("started");
       const coordinates = [
         [data.startLongitude, data.startLatitude],
         [data.destLongitude, data.destLatitude],

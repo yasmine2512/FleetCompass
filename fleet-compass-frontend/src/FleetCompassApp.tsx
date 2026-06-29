@@ -1,28 +1,16 @@
 import { useState,useRef,useEffect ,useCallback} from "react";
-import type { Driver ,LogEntry,KPI,Status,LogType } from "./types";
+import type { Driver ,LogEntry,KPI,Status,LogType,TripStatus,Trip,TripWizard } from "./types";
 import KpiCard from './KpiCard';
 import Terminal from './Terminal';
 import ThroughputChart from './ThroughputChart';
 import LeafletMap from "./LeafletMap";
+import TopBar from "./TopBar";
+import DispatchPopup from "./DispatchPopup";
+import SearchPanel from "./SearchPanel";
+import TripWizardOverlay from "./TripWizard";
 import { useNavigate } from "react-router-dom";
-const [User,setUser] = useState(null);
-const navigate = useNavigate();
-useEffect(() => {
-  fetch("http://localhost:3001/user/me", {
-    credentials: "include",
-  })
-    .then(res => {
-      if (!res.ok) throw new Error();
-      return res.json();
-    })
-    .then(user => {
-      setUser(user);
-      navigate("/dashboard");
-    })
-    .catch(() => {
-      navigate("/");
-    });
-}, []);
+
+
 
 function useScriptsLoaded(srcs: string[]) {
   const [loaded, setLoaded] = useState(false);
@@ -49,7 +37,7 @@ const DRIVER_NAMES = [
 ];
 
 const STATUSES: Status[] = ["Delivering","En Route","Idle","Pick-up"];
-
+const TRIP_STATUSES: TripStatus[] = ["Pending", "Ongoing", "Completed"];
 const LOG_MSGS: Array<(d: Driver) => string> = [
   d => `GPS_PING ${d.name} lat=${d.lat.toFixed(5)} lng=${d.lng.toFixed(5)}`,
   d => `SPEED_UPDATE ${d.name} → ${d.speed}mph`,
@@ -71,17 +59,30 @@ const LOG_MSGS: Array<(d: Driver) => string> = [
     speed: Math.floor(Math.random() * 30 + 25),
     status: STATUSES[Math.floor(Math.random() * STATUSES.length)],
     order: `ORD-${10000 + i * 317}`,
+    tripStatus: TRIP_STATUSES[Math.floor(Math.random() * TRIP_STATUSES.length)],
+    available: Math.random() > 0.4,
      } });
 }
 
 
 let logSeq = 0;
 function FleetCompassApp() {
+  const navigate = useNavigate();
+  const [User,setUser] = useState(null);
   const [drivers,      setDrivers]      = useState<Driver[]>(() => makeDrivers());
   const [chartData,    setChartData]    = useState<number[]>(() => Array.from({ length: 30 }, () => Math.random() * 60 + 80));
   const [kpi,          setKpi]          = useState<KPI>({ ingestion: 0, latency: 14 });
   const [logs,         setLogs]         = useState<LogEntry[]>([]);
   const tickRef = useRef(0);
+  const [trips,        setTrips]        = useState<Trip[]>([]);
+  const [showSearch,   setShowSearch]   = useState(false);
+  const [dispatchPopup, setDispatchPopup] = useState<{ lat: number; lng: number } | null>(null);
+  const [wizard, setWizard] = useState<TripWizard>({
+    step: "idle", originLat: 0, originLng: 0,
+    destLat: null, destLng: null, orderName: "", assignedDriverId: null,
+  });
+  const mapRef = useRef<any>(null); // ref to pan map
+
 
   const pushLog = useCallback((msg: string, type: LogType = "normal") => {
     const entry: LogEntry = { id: logSeq++, ts: nowHHMMSS(), msg, type };
@@ -158,6 +159,8 @@ function FleetCompassApp() {
     return { ...d, lat, lng, vx, vy, speed, status };
   })
 );
+
+
       /* chart rolling window */
       setChartData(prev => {
         const last   = prev[prev.length - 1] ?? 100;
@@ -192,6 +195,89 @@ function FleetCompassApp() {
 
     return () => clearInterval(id);
   }, [pushLog]);
+
+
+  const handleMapClick = useCallback((lat: number, lng: number) => {
+      if (wizard.step === "pick-destination") {
+        // wizard step 1 complete — move to assign
+        setWizard(w => ({ ...w, step: "assign", destLat: lat, destLng: lng }));
+        pushLog(`[TRIP] Destination set at ${lat.toFixed(5)}, ${lng.toFixed(5)}`, "info");
+        return;
+      }
+      if (wizard.step === "assign") return; // ignore clicks during assign step
+      // normal dispatch popup
+      setDispatchPopup({ lat, lng });
+      pushLog(`[DISPATCH] New task created at ${lat.toFixed(5)}, ${lng.toFixed(5)}`, "dispatch");
+    }, [wizard.step, pushLog]);
+  
+    /* ── driver focus (from search "Find on map" or driver click) ── */
+    const handleFocusDriver = useCallback((d: Driver) => {
+      if (mapRef.current) {
+        mapRef.current.setView([d.lat, d.lng], 15, { animate: true });
+      }
+    }, []);
+  
+    /* ── trip wizard handlers ── */
+    const handleStartTrip = () => {
+      if (!dispatchPopup) return;
+      setDispatchPopup(null);
+      setWizard({
+        step: "pick-destination",
+        originLat: dispatchPopup.lat, originLng: dispatchPopup.lng,
+        destLat: null, destLng: null, orderName: "", assignedDriverId: null,
+      });
+      pushLog("[TRIP] Wizard started — click destination on map", "info");
+    };
+  
+    const handleConfirmTrip = () => {
+      if (!wizard.assignedDriverId || !wizard.orderName.trim() || wizard.destLat === null) return;
+      const driver = drivers.find(d => d.id === wizard.assignedDriverId);
+      if (!driver) return;
+  
+      const newTrip: Trip = {
+        id: `TRIP-${Date.now()}`,
+        driverId: driver.id,
+        driverName: driver.name,
+        orderName: wizard.orderName.trim(),
+        originLat: wizard.originLat, originLng: wizard.originLng,
+        destLat: wizard.destLat,     destLng: wizard.destLng!,
+        tripStatus: "Ongoing",
+      };
+  
+      setTrips(prev => [...prev, newTrip]);
+      setDrivers(prev => prev.map(d =>
+        d.id === driver.id
+          ? { ...d, available: false, tripStatus: "Ongoing", order: wizard.orderName.trim(), status: "En Route" }
+          : d
+      ));
+      pushLog(`[TRIP] ${driver.name} assigned → ${wizard.orderName} (${wizard.originLat.toFixed(4)},${wizard.originLng.toFixed(4)}) → (${wizard.destLat.toFixed(4)},${wizard.destLng!.toFixed(4)})`, "dispatch");
+  
+      setWizard({ step: "idle", originLat: 0, originLng: 0, destLat: null, destLng: null, orderName: "", assignedDriverId: null });
+    };
+  
+    const handleCancelWizard = () => {
+      setWizard({ step: "idle", originLat: 0, originLng: 0, destLat: null, destLng: null, orderName: "", assignedDriverId: null });
+      pushLog("[TRIP] Wizard cancelled", "warn");
+    };
+  
+
+
+useEffect(() => {
+  fetch("http://localhost:3001/user/me", {
+    credentials: "include",
+  })
+    .then(res => {
+      if (!res.ok) throw new Error();
+      return res.json();
+    })
+    .then(user => {
+      setUser(user);
+      navigate("/App");
+    })
+    .catch(() => {
+      navigate("/");
+    });
+}, []);
 
   const latencyColor = kpi.latency > 30 ? "#ef4444" : kpi.latency > 20 ? "#f59e0b" : "#fbbf24";
 
@@ -247,8 +333,65 @@ function FleetCompassApp() {
         </div>
       </div>
 
+      <TopBar onSearch={() => setShowSearch(true)} onLogout={() => pushLog("[AUTH] User logged out", "warn")} />
+
+
       {/* ── Map ── */}
-      <LeafletMap drivers={drivers} onAddLog={pushLog} />
+      <LeafletMap
+       drivers={drivers}
+       onAddLog={pushLog}
+       wizard={wizard}
+       onMapClick={handleMapClick}
+       onFocusDriver={handleFocusDriver} />
+
+       {/* ── Dispatch popup (non-wizard) ── */}
+      {dispatchPopup && wizard.step === "idle" && (
+        <DispatchPopup
+          lat={dispatchPopup.lat}
+          lng={dispatchPopup.lng}
+          onClose={() => setDispatchPopup(null)}
+          onStartTrip={handleStartTrip}
+        />
+      )}
+
+      {/* ── Trip wizard ── */}
+      {wizard.step !== "idle" && (
+        <TripWizardOverlay
+          wizard={wizard}
+          drivers={drivers}
+          onSetOrderName={name => setWizard(w => ({ ...w, orderName: name }))}
+          onAssignDriver={id => setWizard(w => ({ ...w, assignedDriverId: id }))}
+          onConfirm={handleConfirmTrip}
+          onCancel={handleCancelWizard}
+        />
+      )}
+
+      {/* crosshair hint banner */}
+      {wizard.step === "pick-destination" && (
+        <div style={{
+          position: "fixed", top: 18, left: "50%", transform: "translateX(-50%)",
+          zIndex: 2600, padding: "8px 18px",
+          background: "rgba(245,158,11,0.15)", border: "1px solid rgba(245,158,11,0.4)",
+          borderRadius: 20, color: "#fbbf24", fontSize: 12, fontWeight: 600,
+          letterSpacing: "0.05em", backdropFilter: "blur(8px)",
+          display: "flex", alignItems: "center", gap: 8,
+          animation: "fc-pop-in 0.2s ease",
+        }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+          Click the destination point on the map
+        </div>
+      )}
+
+      {/* ── Search panel ── */}
+      {showSearch && (
+        <SearchPanel
+          drivers={drivers}
+          trips={trips}
+          onClose={() => setShowSearch(false)}
+          onFindOnMap={handleFocusDriver}
+        />
+      )}
+
     </>
   );
 }

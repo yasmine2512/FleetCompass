@@ -8,7 +8,7 @@ function App() {
   return (
     <>
   <Routes>
-    <Route path='/Auth' element={<FleetCompassAuth />}/>
+    <Route path='/' element={<FleetCompassAuth />}/>
     <Route path='/App' element={<FleetCompassApp />}/>
   </Routes>
     </>

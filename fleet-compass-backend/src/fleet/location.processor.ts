@@ -54,10 +54,19 @@ export class locationIngestion extends WorkerHost{
       }
 
       await this.databaseService.pool.query(
-        `INSERT INTO driver_locations(trip_id, driver_id, position, speed)
-        VALUES ($1,$2,ST_SetSRID(ST_MakePoint($3,$4),4326)::geography,
-          $5)`,
-        [tripId, driverId, longitude, latitude, speed],
+        `INSERT INTO driver_locations_latest
+        (driver_id, trip_id, position, speed, updated_at)
+        VALUES ($1,$2,
+          ST_SetSRID(ST_MakePoint($3, $4), 4326)::geography,$5,
+          NOW())
+        ON CONFLICT (driver_id)
+        DO UPDATE SET
+          trip_id = EXCLUDED.trip_id,
+          position = EXCLUDED.position,
+          speed = EXCLUDED.speed,
+          updated_at = NOW()
+        `,
+        [driverId, tripId, longitude, latitude, speed],
       );
 
       this.fleetEventsService.emit('locationUpdate', {
