@@ -5,11 +5,12 @@ import { CreateFleetDto } from './dto/create-fleet.dto';
 import { UpdateFleetDto } from './dto/update-fleet.dto';
 import { UseGuards} from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
-import { AuthService } from 'src/user/auth.service';
+import { AuthGuard } from 'src/user/auth.guard';
 
 @WebSocketGateway({
-  cors: {
-    origin: '*',
+   cors: {
+    origin: "http://localhost:5173",
+    credentials: true,
   },
 })
 export class FleetGateway implements OnGatewayConnection{
@@ -27,7 +28,7 @@ export class FleetGateway implements OnGatewayConnection{
     console.log('Client connected:', client.id);
   }
 
-  @UseGuards(AuthService)
+  @UseGuards(AuthGuard)
   @SubscribeMessage('startTrip')
   async create(@MessageBody() data: CreateFleetDto, @ConnectedSocket() client: Socket) {
     console.log("called");

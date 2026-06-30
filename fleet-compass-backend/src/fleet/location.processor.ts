@@ -28,6 +28,7 @@ export class locationIngestion extends WorkerHost{
 
     let previousPoint: number[] | null = null;
     let previousTimestamp = Date.now();
+    let pointIndex = 0;
     try {
     for (const point of route) {
       try{
@@ -52,9 +53,9 @@ export class locationIngestion extends WorkerHost{
         speed = (distance / timeElapsed) * 3.6;
         previousTimestamp = now;
       }
-
+       if (pointIndex % 5 === 0 || pointIndex === route.length - 1) {
       await this.databaseService.pool.query(
-        `INSERT INTO driver_locations_latest
+        `INSERT INTO driver_locations
         (driver_id, trip_id, position, speed, updated_at)
         VALUES ($1,$2,
           ST_SetSRID(ST_MakePoint($3, $4), 4326)::geography,$5,
@@ -68,7 +69,7 @@ export class locationIngestion extends WorkerHost{
         `,
         [driverId, tripId, longitude, latitude, speed],
       );
-
+    }
       this.fleetEventsService.emit('locationUpdate', {
         tripId,
         driverId,
@@ -86,21 +87,40 @@ export class locationIngestion extends WorkerHost{
 
       console.log('Trip finished');
 
+      const endedAt = new Date();
       await this.databaseService.pool.query(
-      `UPDATE trips
-      SET status='completed'
-      WHERE id=$1`,
-      [tripId]);
-
+        `
+        UPDATE trips
+        SET
+          status = 'Completed',
+          ended_at = $2,
+          duration_seconds = EXTRACT(EPOCH FROM ($2 - started_at))
+        WHERE id = $1
+        `,
+        [tripId, endedAt]
+      );
       await this.databaseService.pool.query(
-        `UPDATE drivers SET status='available' WHERE id=$1`,
+        `UPDATE drivers SET status='Idle' WHERE id=$1`,
         [driverId]
       );
+      
+      await this.databaseService.pool.query(
+        `
+        UPDATE driver_locations
+        SET
+          trip_id = NULL,
+          speed = 0
+        WHERE driver_id = $1
+        `,
+        [driverId]
+      );
+      
 
     this.fleetEventsService.emit('tripCompleted', {
       tripId,
       driverId,
-      status: 'completed'
+      status: 'Completed',
+      speed: 0
     });
  } catch (error) {
       console.error('PROCESSOR ERROR:', error);

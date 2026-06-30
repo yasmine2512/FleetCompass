@@ -3,9 +3,10 @@ import { CreateFleetDto } from './dto/create-fleet.dto';
 import { UpdateFleetDto } from './dto/update-fleet.dto';
 import { FleetService } from './fleet.service';
 import { UpdateTripStatusDto } from './dto/update-fleet-status.dto';
-import { AuthService } from 'src/user/auth.service';
+import { AuthGuard } from 'src/user/auth.guard';
 import type { Request } from 'express';
 
+@UseGuards(AuthGuard)
 @Controller('fleets')
 export class FleetController {
  constructor(private readonly fleetService: FleetService) {}
@@ -27,8 +28,12 @@ export class FleetController {
         return this.fleetService.findAllDrivers(req.user!.id);
     }
 
+    @Post('drivers')
+    CreateDriver(@Req() req: Request ,@Body("name") name : string){
+        return this.fleetService.createDriver(name,req.user!.id);
+    }
+
     @Get('drivers/:id')
-    @UseGuards(AuthService)
     findOneDriver(@Param('id') id:string,@Req() req: Request){
         return this.fleetService.findOneDriver(+id,req.user!.id);
     }

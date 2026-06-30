@@ -3,7 +3,7 @@ import { DatabaseService } from "src/database/database.service";
 import * as cookie from 'cookie';
 
 @Injectable()
-export class AuthService implements CanActivate {
+export class AuthGuard implements CanActivate {
     constructor(private readonly databaseService:DatabaseService) {}
   async canActivate(context: ExecutionContext) {
 

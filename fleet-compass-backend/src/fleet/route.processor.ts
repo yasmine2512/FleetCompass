@@ -32,7 +32,7 @@ export class RouteProcessor extends WorkerHost {
       const route = await this.fleetService.getRoute(coordinates);
 
       await this.databaseService.pool.query(
-        `UPDATE trips SET status = 'active' WHERE id = $1`,
+        `UPDATE trips SET status = 'Ongoing' WHERE id = $1`,
         [tripId]
       );
 
@@ -65,7 +65,7 @@ export class RouteProcessor extends WorkerHost {
         tripId,
         driverId,
         orderName,
-        status: 'active',
+        status: 'Ongoing',
       });
 
     } catch (err) {

@@ -4,7 +4,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { LoginUserDto } from './dto/login-user.dto';
 import type { Response } from 'express'
-import { AuthService } from './auth.service';
+import { AuthGuard } from './auth.guard';
 @Controller('user')
 export class UserController {
   constructor(private readonly userService: UserService) {}
@@ -32,7 +32,7 @@ export class UserController {
 
 
   @Get('me')
-  @UseGuards(AuthService)
+  @UseGuards(AuthGuard)
   getProfile(@Req() req) {
   return req.user;
 }
