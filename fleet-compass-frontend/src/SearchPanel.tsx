@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { SearchPanelProps ,Driver,DriverAvailability,TripStatus} from "./types";
+import type { SearchPanelProps ,Driver,Status,TripStatus} from "./types";
 import AddDriverModal from "./AddDriverModal";
 const TH_STYLE: React.CSSProperties = {
   padding: "10px 14px", textAlign: "left", fontSize: 10, fontWeight: 700,
@@ -16,15 +16,14 @@ const ICON_BTN: React.CSSProperties = {
   transition: "background 0.15s",
 };
 
-function driverAvailability(d: Driver): DriverAvailability {
-  if (!d.available) return d.status === "Idle" ? "Offline" : "Unavailable";
-  return "Available";
+function driverAvailability(d: Driver): Status {
+  return d.status;
 }
 
-const AVAIL_STYLE: Record<DriverAvailability, React.CSSProperties> = {
-  Available:   { color: "#4ade80", background: "rgba(34,197,94,0.10)",  border: "1px solid rgba(34,197,94,0.3)"  },
+const AVAIL_STYLE: Record<Status, React.CSSProperties> = {
+  Idle:   { color: "#4ade80", background: "rgba(34,197,94,0.10)",  border: "1px solid rgba(34,197,94,0.3)"  },
   Offline:     { color: "#94a3b8", background: "rgba(148,163,184,0.08)", border: "1px solid rgba(148,163,184,0.25)" },
-  Unavailable: { color: "#f87171", background: "rgba(239,68,68,0.10)",  border: "1px solid rgba(239,68,68,0.3)"  },
+  "En Route": { color: "#60a5fa", background: "rgba(68, 71, 239, 0.1)",  border: "1px solid rgba(68, 114, 239, 0.3)"  },
 };
 
 const TRIP_STATUS_STYLE: Record<TripStatus, React.CSSProperties> = {
@@ -41,12 +40,12 @@ function SearchPanel({ drivers, trips, onClose, onFindOnMap, onDeleteDriver, onA
 
   /* ── filtered lists ── */
   const filteredDrivers = drivers.filter(d =>
-    d.name.toLowerCase().includes(q.toLowerCase()) ||
-    d.order.toLowerCase().includes(q.toLowerCase())
+    d.name.toLowerCase().includes(q.toLowerCase()) 
+   // || d.order.toLowerCase().includes(q.toLowerCase())
   );
   const filteredTrips = trips.filter(t =>
-    t.orderName.toLowerCase().includes(q.toLowerCase()) ||
-    t.driverName.toLowerCase().includes(q.toLowerCase())
+    t.order_name.toLowerCase().includes(q.toLowerCase()) ||
+    t.driver_name.toLowerCase().includes(q.toLowerCase())
   );
 
   const resultCount = tab === "drivers" ? filteredDrivers.length : filteredTrips.length;
@@ -64,9 +63,9 @@ function SearchPanel({ drivers, trips, onClose, onFindOnMap, onDeleteDriver, onA
       setConfirmDel({ kind: "driver", id });
     }
   };
-  const handleDeleteTrip = (id: string) => {
+  const handleDeleteTrip = (id: number) => {
     if (confirmDel?.kind === "trip" && confirmDel.id === id) {
-      onDeleteTrip(id);
+      onDeleteTrip(toString());
       setConfirmDel(null);
     } else {
       setConfirmDel({ kind: "trip", id });
@@ -184,7 +183,7 @@ function SearchPanel({ drivers, trips, onClose, onFindOnMap, onDeleteDriver, onA
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
           <thead>
             <tr>
-              {["Driver Name", "Status", "Current Order", "Actions"].map(h => (
+              {["Driver Name", "Status", "Actions"].map(h => (
                 <th key={h} style={TH_STYLE}>{h}</th>
               ))}
             </tr>
@@ -215,9 +214,6 @@ function SearchPanel({ drivers, trips, onClose, onFindOnMap, onDeleteDriver, onA
                   <span style={{ marginRight: 5 }}>●</span>{avail}
                 </span>
               </td>
-
-              {/* order */}
-              <td style={{ ...TD_STYLE, color: "#94a3b8", fontFamily: "monospace", fontSize: 11 }}>{d.order}</td>
 
               {/* actions */}
               <td style={TD_STYLE}>
@@ -292,32 +288,38 @@ function SearchPanel({ drivers, trips, onClose, onFindOnMap, onDeleteDriver, onA
 
               {/* order */}
               <td style={TD_STYLE}>
-                <div style={{ color: "#e2e8f0", fontWeight: 700, fontFamily: "monospace", fontSize: 11 }}>{t.orderName}</div>
-                <div style={{ color: "#334155", fontSize: 10, marginTop: 2 }}>#{t.id.slice(-6)}</div>
+                <div style={{ color: "#e2e8f0", fontWeight: 700, fontFamily: "monospace", fontSize: 11 }}>{t.order_name}</div>
+                <div style={{ color: "#334155", fontSize: 10, marginTop: 2 }}>#{String(t.id).slice(-6)}</div>
               </td>
 
               {/* driver */}
-              <td style={{ ...TD_STYLE, color: "#a5b4fc", fontWeight: 600 }}>{t.driverName}</td>
+              <td style={{ ...TD_STYLE, color: "#a5b4fc", fontWeight: 600 }}>{t.driver_name}</td>
 
               {/* trip status */}
               <td style={TD_STYLE}>
-                <span style={{ fontSize: 10, padding: "3px 9px", borderRadius: 20, fontWeight: 700, letterSpacing: "0.04em", ...TRIP_STATUS_STYLE[t.tripStatus] }}>
-                  {t.tripStatus === "Ongoing" && <span style={{ marginRight: 5 }}>◉</span>}
-                  {t.tripStatus}
+                <span style={{ fontSize: 10, padding: "3px 9px", borderRadius: 20, fontWeight: 700, letterSpacing: "0.04em", ...TRIP_STATUS_STYLE[t.status] }}>
+                  {t.status === "Ongoing" && <span style={{ marginRight: 5 }}>◉</span>}
+                  {t.status}
                 </span>
               </td>
 
               {/* date */}
               <td style={{ ...TD_STYLE, color: "#64748b", fontSize: 11, fontFamily: "monospace" }}>
-                {new Date(parseInt(t.id.replace("TRIP-", ""))).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                {new Date(t.started_at).toLocaleString("en-US", {
+                month: "short",
+                day: "numeric",
+                hour: "2-digit",
+                minute: "2-digit"
+              })}
               </td>
 
               {/* duration */}
               <td style={{ ...TD_STYLE, color: "#64748b", fontSize: 11, fontFamily: "monospace" }}>
-                {t.tripStatus === "Ongoing" ? (
+                {t.status === "Ongoing" ? (
                   <span style={{ color: "#4ade80" }}>In progress</span>
                 ) : (
-                  `${Math.floor(Math.random() * 40 + 8)} min`
+                  
+                  `${Math.floor(t.duration_seconds / 60)}m ${t.duration_seconds % 60}s `
                 )}
               </td>
 

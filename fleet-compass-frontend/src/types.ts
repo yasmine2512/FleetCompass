@@ -1,17 +1,32 @@
-export type Status = "Delivering" | "En Route" | "Idle" | "Pick-up";
+export type Status = "Idle" | "En Route" | "Offline" ;
+// export interface Driver {
+//   id: number;
+//   name: string;
+//   lat: number;
+//   lng: number;
+//   speed: number;
+//   status: Status;
+//   vx: number;
+//   vy: number;
+//   order: string;
+//   tripStatus: TripStatus;
+//   available: boolean;
+// }
+
 export interface Driver {
   id: number;
   name: string;
-  lat: number;
-  lng: number;
-  speed: number;
+  lat?: number;
+  lng?: number;
+  speed?: number;
   status: Status;
-  vx: number;
-  vy: number;
-  order: string;
-  tripStatus: TripStatus;
-  available: boolean;
+  currentTrip?: {
+    id: number,
+    orderName: string,
+    status: TripStatus,
+  }
 }
+
 export type LogType = "normal" | "info" | "warn" | "dispatch" | "dim";
 export type TripStatus = "Pending" | "Ongoing" | "Completed";
 
@@ -22,16 +37,27 @@ export interface LogEntry {
   type: LogType;
 }
 
+// export interface Trip {
+//   id: string;
+//   driverId: number;
+//   driverName: string;
+//   orderName: string;
+//   originLat: number;
+//   originLng: number;
+//   destLat: number;
+//   destLng: number;
+//   tripStatus: TripStatus;
+// }
+
 export interface Trip {
-  id: string;
-  driverId: number;
-  driverName: string;
-  orderName: string;
-  originLat: number;
-  originLng: number;
-  destLat: number;
-  destLng: number;
-  tripStatus: TripStatus;
+  id: number;
+  driver_id: number;
+  driver_name: string;
+  order_name: string;
+  status: TripStatus;
+  started_at: string;
+  ended_at: string;
+  duration_seconds: number;
 }
 
 export type TripWizardStep = "idle" | "pick-destination" | "assign";

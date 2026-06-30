@@ -1,7 +1,7 @@
 import type { TripWizardOverlayProps ,TripWizardStep,Status} from "./types";
 
 function TripWizardOverlay({ wizard, drivers, onSetOrderName, onAssignDriver, onConfirm, onCancel }: TripWizardOverlayProps) {
-  const availableDrivers = drivers.filter(d => d.available);
+  const availableDrivers = drivers.filter(d => d.status === 'Idle');
 
   const stepLabel: Record<TripWizardStep, string> = {
     idle: "",
@@ -9,10 +9,9 @@ function TripWizardOverlay({ wizard, drivers, onSetOrderName, onAssignDriver, on
     assign: "Step 2 — Assign a driver & name the order",
   };
 const STATUS_COLORS: Record<Status, string> = {
-  "Delivering": "#4ade80",
+  "Idle": "#4ade80",
   "En Route": "#60a5fa",
-  "Idle": "#f59e0b",
-  "Pick-up": "#f472b6",
+  "Offline": "#f59e0b",
 };
   return (
     <div style={{
@@ -100,7 +99,7 @@ const STATUS_COLORS: Record<Status, string> = {
                   >
                     <svg width="7" height="7" viewBox="0 0 8 8"><circle cx="4" cy="4" r="4" fill={STATUS_COLORS[d.status]}/></svg>
                     <span style={{ fontWeight: 600 }}>{d.name}</span>
-                    <span style={{ color: "#64748b", marginLeft: "auto", fontSize: 10 }}>{d.order}</span>
+                    <span style={{ color: "#64748b", marginLeft: "auto", fontSize: 10 }}>{d.status}</span>
                     {wizard.assignedDriverId === d.id && (
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#818cf8" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
                     )}

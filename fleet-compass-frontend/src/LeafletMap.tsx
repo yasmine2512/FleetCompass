@@ -1,5 +1,5 @@
 import { useEffect,useRef } from 'react';
-import type {Driver ,Status ,LogType,TripWizard} from './types'
+import type {Driver ,LogType,Status,TripWizard} from './types'
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -42,10 +42,9 @@ function dispatchIconSvg() {
     </svg>`;
 }
 const STATUS_COLORS: Record<Status, string> = {
-  "Delivering": "#4ade80",
+  "Idle": "#4ade80",
   "En Route": "#60a5fa",
-  "Idle": "#f59e0b",
-  "Pick-up": "#f472b6",
+  "Offline": "#f59e0b",
 };
 
 interface MapProps {
@@ -88,27 +87,6 @@ function LeafletMap({drivers, onAddLog , wizard, onMapClick, onFocusDriver,setDi
     ).addTo(map);
     L.control.zoom({ position: "bottomright" }).addTo(map);
 
-    // map.on("click", (e:  L.LeafletMouseEvent) => {
-    //   const { lat, lng } = e.latlng;
-    // //   if (dispatchRef.current) map.removeLayer(dispatchRef.current);
-    // dispatchRef.current?.remove();
-    //   const icon = L.divIcon({ html: dispatchIconSvg(), className: "", iconSize: [36,36], iconAnchor: [18,18], popupAnchor: [0,-22] });
-    //   dispatchRef.current = L.marker([lat, lng], { icon })
-    //     .addTo(map)
-    //     .bindPopup(
-    //       `<div style="font-family:monospace;font-size:12px;color:#a5b4fc;padding:4px 6px;">
-    //         <b style="color:#c4b5fd;">NEW DISPATCH REQUEST</b><br>
-    //         <span style="color:#94a3b8;">Lat: ${lat.toFixed(5)}</span><br>
-    //         <span style="color:#94a3b8;">Lng: ${lng.toFixed(5)}</span><br>
-    //         <span style="font-size:10px;color:#6b7280;">Click a driver to assign</span>
-    //       </div>`
-    //     )
-    //     .openPopup();
-    //   onAddLog(`[DISPATCH] New task created at ${lat.toFixed(5)}, ${lng.toFixed(5)}`, "dispatch");
-    //   setTimeout(() => {
-    //     if (dispatchRef.current) { map.removeLayer(dispatchRef.current); dispatchRef.current = null; }
-    //   }, 15000);
-    // });
 map.on("click", (e: L.LeafletMouseEvent) => {
   const { lat, lng } = e.latlng;
 
@@ -180,14 +158,16 @@ map.on("click", (e: L.LeafletMouseEvent) => {
     const seen = new Set<number>();
 
     drivers.forEach(d => {
+        const lat = d.lat ?? 0;
+        const lng = d.lng ?? 0;
       seen.add(d.id);
       const color = STATUS_COLORS[d.status] ?? "#ffffff";
       const icon  = L.divIcon({ html: driverIconSvg(color), className: "", iconSize: [28,28], iconAnchor: [14,14], popupAnchor: [0,-18] });
         const marker = markersRef.current.get(d.id);
         driverDataRef.current.set(d.id, d);
       if (marker && map.hasLayer(marker)) {
-        
-        marker.setLatLng([d.lat, d.lng]);
+
+        marker.setLatLng([lat,lng]);
         marker.setIcon(
       L.divIcon({
         html: driverIconSvg(STATUS_COLORS[d.status]),
@@ -198,7 +178,7 @@ map.on("click", (e: L.LeafletMouseEvent) => {
       })
     );
       } else {
-        const m = L.marker([d.lat, d.lng], { icon }).addTo(map);
+        const m = L.marker([lat, lng], { icon }).addTo(map);
         m.bindPopup(""); 
         (m as any).driverId = d.id;
         // driverDataRef.current.set(d.id, d);
@@ -216,9 +196,9 @@ map.on("click", (e: L.LeafletMouseEvent) => {
                   ${latest.name}
                 </h3>
                 <div class="stat-row"><span>Status</span><span class="status-badge">${latest.status}</span></div>
-                <div class="stat-row"><span>Speed</span><span class="stat-val">${latest.speed.toFixed(4)} mph</span></div>
-                <div class="stat-row"><span>Order</span><span class="stat-val">${latest.order}</span></div>
-                <div class="stat-row"><span>Lat / Lng</span><span class="stat-val">${latest.lat.toFixed(4)}, ${latest.lng.toFixed(4)}</span></div>
+                <div class="stat-row"><span>Speed</span><span class="stat-val">${latest.speed?.toFixed(4)} mph</span></div>
+                <div class="stat-row"><span>Order</span><span class="stat-val">${latest.currentTrip?.orderName ?? "No active order"}</span></div>
+                <div class="stat-row"><span>Lat / Lng</span><span class="stat-val">${latest.lat?.toFixed(4)}, ${latest.lng?.toFixed(4)}</span></div>
                 <div class="stat-row"><span>Signal</span><span class="stat-val" style="color:#4ade80;">Strong</span></div>
               </div>`
           m.setPopupContent(html);

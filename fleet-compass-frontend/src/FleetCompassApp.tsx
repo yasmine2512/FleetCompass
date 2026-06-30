@@ -1,5 +1,5 @@
 import { useState,useRef,useEffect ,useCallback} from "react";
-import type { Driver ,LogEntry,KPI,Status,LogType,TripStatus,Trip,TripWizard } from "./types";
+import type { Driver ,LogEntry,KPI,LogType,TripStatus,Trip,TripWizard } from "./types";
 import KpiCard from './KpiCard';
 import Terminal from './Terminal';
 import ThroughputChart from './ThroughputChart';
@@ -9,7 +9,7 @@ import DispatchPopup from "./DispatchPopup";
 import SearchPanel from "./SearchPanel";
 import TripWizardOverlay from "./TripWizard";
 import { useNavigate } from "react-router-dom";
-
+import { api ,socket ,fleetApi} from "./api/client";
 
 
 function useScriptsLoaded(srcs: string[]) {
@@ -28,6 +28,8 @@ function useScriptsLoaded(srcs: string[]) {
   }, []);
   return loaded;
 }
+
+
 function nowHHMMSS() {
   return new Date().toTimeString().slice(0, 8);
 }
@@ -36,40 +38,40 @@ const DRIVER_NAMES = [
   "D-FOXTROT","D-GOLF","D-HOTEL","D-INDIA","D-JULIET",
 ];
 
-const STATUSES: Status[] = ["Delivering","En Route","Idle","Pick-up"];
 const TRIP_STATUSES: TripStatus[] = ["Pending", "Ongoing", "Completed"];
+// when creating a driver
 const LOG_MSGS: Array<(d: Driver) => string> = [
-  d => `GPS_PING ${d.name} lat=${d.lat.toFixed(5)} lng=${d.lng.toFixed(5)}`,
+  d => `GPS_PING ${d.name} lat=${d.lat?.toFixed(5)} lng=${d.lng?.toFixed(5)}`,
   d => `SPEED_UPDATE ${d.name} → ${d.speed}mph`,
   d => `HEARTBEAT ${d.name} OK signal=strong`,
   d => `STATUS_SYNC ${d.name} [${d.status}]`,
   d => `ROUTE_CALC ${d.name} ETA=+${Math.floor(Math.random()*20+2)}min`,
 ]
-    function makeDrivers(): Driver[] {
-  return DRIVER_NAMES.map((name, i) => {
-    const angle = Math.random() * Math.PI * 2;
-    const speed = 0.0002 + Math.random() * 0.0006;
-    return{
-    id: i,
-    name,
-    lat: 40.7128 + (Math.random() - 0.5) * 0.05,
-    lng: -74.006 + (Math.random() - 0.5) * 0.09,
-    vx: Math.cos(angle) * speed,
-    vy: Math.sin(angle) * speed,
-    speed: Math.floor(Math.random() * 30 + 25),
-    status: STATUSES[Math.floor(Math.random() * STATUSES.length)],
-    order: `ORD-${10000 + i * 317}`,
-    tripStatus: TRIP_STATUSES[Math.floor(Math.random() * TRIP_STATUSES.length)],
-    available: Math.random() > 0.4,
-     } });
-}
+//     function makeDrivers(): Driver[] {
+//   return DRIVER_NAMES.map((name, i) => {
+//     const angle = Math.random() * Math.PI * 2;
+//     const speed = 0.0002 + Math.random() * 0.0006;
+//     return{
+//     id: i,
+//     name,
+//     lat: 40.7128 + (Math.random() - 0.5) * 0.05,
+//     lng: -74.006 + (Math.random() - 0.5) * 0.09,
+//     vx: Math.cos(angle) * speed,
+//     vy: Math.sin(angle) * speed,
+//     speed: Math.floor(Math.random() * 30 + 25),
+//     status: STATUSES[Math.floor(Math.random() * STATUSES.length)],
+//     order: `ORD-${10000 + i * 317}`,
+//     tripStatus: TRIP_STATUSES[Math.floor(Math.random() * TRIP_STATUSES.length)],
+//     available: Math.random() > 0.4,
+//      } });
+// }
 
 
 let logSeq = 0;
 function FleetCompassApp() {
   const navigate = useNavigate();
   const [User,setUser] = useState(null);
-  const [drivers,      setDrivers]      = useState<Driver[]>(() => makeDrivers());
+  const [drivers,      setDrivers]      = useState<Driver[]>([]);
   const [chartData,    setChartData]    = useState<number[]>(() => Array.from({ length: 30 }, () => Math.random() * 60 + 80));
   const [kpi,          setKpi]          = useState<KPI>({ ingestion: 0, latency: 14 });
   const [logs,         setLogs]         = useState<LogEntry[]>([]);
@@ -83,6 +85,100 @@ function FleetCompassApp() {
   });
   const mapRef = useRef<any>(null); // ref to pan map
 
+//REST api
+useEffect(() => {
+  (async () => {
+    const [driversRes, tripsRes] = await Promise.all([
+      fleetApi.getDrivers(),
+      fleetApi.getTrips(),
+    ]);
+    console.log(driversRes);
+    console.log(tripsRes);
+    setDrivers(driversRes.data);
+    setTrips(tripsRes.data);
+  })();
+}, []);
+
+
+// socket api
+useEffect(() => {
+  socket.connect();
+  socket.on("connect", () => {
+    console.log("Socket connected:", socket.id);
+  });
+  socket.on("tripRequested", (data) => {
+    setTrips(prev => [
+      ...prev,
+      {
+        id: data.tripId,
+        status: "Pending",
+      } as Trip,
+    ]);
+  });
+  socket.on("tripStarted", (data) => {
+    const { tripId, driverId, orderName } = data;
+    setTrips(prev =>
+      prev.map(t =>
+        t.id === tripId
+          ? { ...t, tripStatus: "Ongoing", orderName }
+          : t
+      )
+    );
+    setDrivers(prev =>
+      prev.map(d =>
+        d.id === driverId
+          ? { ...d, status: "En Route",
+                  order: data.orderName }
+          : d
+      )
+    );
+  });
+  socket.on("locationUpdate", (data) => {
+    const { driverId, latitude, longitude, speed } = data;
+    setDrivers(prev =>
+      prev.map(d =>
+        d.id === driverId
+          ? {...d,
+              lat: latitude,
+              lng: longitude,
+              speed,
+            }
+          : d
+      )
+    );
+  });
+  socket.on("tripCompleted", (data) => {
+    const { tripId, driverId } = data;
+
+    setTrips(prev =>
+      prev.map(t =>
+        t.id === tripId
+          ? { ...t, tripStatus: "Completed" }
+          : t
+      )
+    );
+    setDrivers(prev =>
+      prev.map(d =>
+        d.id === driverId
+          ? { ...d, tripStatus: "Completed", status: "Idle",
+                  order: null ,speed: 0}
+          : d
+      )
+    );
+  });
+    socket.on("driverCreated", (driver) => {
+      setDrivers(prev => [...prev, driver]);
+      pushLog(`[DRIVER] ${driver.name} added`, "info");
+  });
+  socket.on("error", (data) => {
+    console.error("Socket error:", data.message);
+    pushLog(`[ERROR] ${data.message}`, "warn");
+  });
+
+  return () => {
+    socket.disconnect();
+  };
+}, []);
 
   const pushLog = useCallback((msg: string, type: LogType = "normal") => {
     const entry: LogEntry = { id: logSeq++, ts: nowHHMMSS(), msg, type };
@@ -96,13 +192,10 @@ function FleetCompassApp() {
   useEffect(() => {
     const t = setTimeout(() => {
       pushLog("System boot complete — telemetry stream open", "info");
-      pushLog(`Fleet loaded: ${DRIVER_NAMES.length} vehicles registered`);
+      pushLog(`Welcome Back ${User}`);
       pushLog("Connecting to WebSocket ws://fleet.api:9000/stream...", "info");
       setTimeout(() => pushLog("WebSocket CONNECTED — streaming at 1Hz", "info"), 600);
       setTimeout(() => pushLog("Map tiles loaded — CARTO Dark v4", "dim"), 1000);
-      drivers.forEach((d, i) => {
-        setTimeout(() => pushLog(`REGISTER ${d.name} → ${d.order} [${d.status}]`), 1200 + i * 120);
-      });
     }, 200);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -110,90 +203,8 @@ function FleetCompassApp() {
 
   /* ── 1.5 s simulation tick ── */
   useEffect(() => {
-    const id = setInterval(() => {
-      tickRef.current += 1;
-      const tick = tickRef.current;
-      /* move drivers — the only state change requested */
-     setDrivers(prev =>  prev.map(d => {
-    let { lat, lng, vx, vy, speed, status } = d;
-    // ── individual steering (small randomness per driver)
-    const steerStrength = 0.00003;
-    vx += (Math.random() - 0.5) * steerStrength;
-    vy += (Math.random() - 0.5) * steerStrength;
-    const maxSpeed = 0.0008;
-    const mag = Math.sqrt(vx * vx + vy * vy);
-    if (mag > maxSpeed) {
-      vx = (vx / mag) * maxSpeed;
-      vy = (vy / mag) * maxSpeed;
-}
-// ── move using THEIR OWN velocity (no normalization!)
-    lat += vy;
-    lng += vx;
-    // ── soft bounce boundaries
-    const latMin = 40.68, latMax = 40.75;
-    const lngMin = -74.07, lngMax = -73.94;
-    if (lat > latMax || lat < latMin) vy *= -1;
-    if (lng > lngMax || lng < lngMin) vx *= -1;
-    // ── occasional direction change per driver
-    if (Math.random() < 0.01) {
-      const turn = (Math.random() - 0.5) * 0.6;
-      const cos = Math.cos(turn);
-      const sin = Math.sin(turn);
-      const newVx = vx * cos - vy * sin;
-      const newVy = vx * sin + vy * cos;
-      vx = newVx;
-      vy = newVy;
-    }
+    
 
-    // ── speed changes PER DRIVER (not global)
-    speed = Math.max(
-      25,
-      Math.min(90, speed + (Math.random() - 0.5) * 2)
-    );
-
-    // ── rare status change
-    if (Math.random() < 0.008) {
-      status = STATUSES[Math.floor(Math.random() * STATUSES.length)] as Status;
-    }
-
-    return { ...d, lat, lng, vx, vy, speed, status };
-  })
-);
-
-
-      /* chart rolling window */
-      setChartData(prev => {
-        const last   = prev[prev.length - 1] ?? 100;
-        const newVal = Math.max(45, Math.min(175, last + (Math.random() - 0.5) * 30));
-        return [...prev.slice(1), parseFloat(newVal.toFixed(1))];
-      });
-
-      /* KPIs */
-      setChartData(prev => {
-        const v = prev[prev.length - 1] ?? 100;
-        const lat2 = Math.floor(Math.random() * 30 + 8);
-        setKpi({ ingestion: Math.floor(v), latency: lat2 });
-        return prev;
-      });
-
-      /* logs */
-      setDrivers(prev => {
-        const d   = prev[Math.floor(Math.random() * prev.length)];
-        const fn  = LOG_MSGS[Math.floor(Math.random() * LOG_MSGS.length)];
-        pushLog(fn(d));
-        if (tick % 7 === 0) {
-          const wd = prev[Math.floor(Math.random() * prev.length)];
-          pushLog(`[WARN] ${wd.name} latency spike detected — ${Math.floor(Math.random()*80+50)}ms`, "warn");
-        }
-        if (tick % 11 === 0) {
-          const rd = prev[Math.floor(Math.random() * prev.length)];
-          pushLog(`[ROUTE] ${rd.name} completed waypoint — next in ${(Math.random()*2+0.3).toFixed(1)}mi`, "info");
-        }
-        return prev; // no state change here, just side-effects
-      });
-    }, 1500);
-
-    return () => clearInterval(id);
   }, [pushLog]);
 
 
@@ -233,23 +244,16 @@ function FleetCompassApp() {
       if (!wizard.assignedDriverId || !wizard.orderName.trim() || wizard.destLat === null) return;
       const driver = drivers.find(d => d.id === wizard.assignedDriverId);
       if (!driver) return;
-  
-      const newTrip: Trip = {
-        id: `TRIP-${Date.now()}`,
-        driverId: driver.id,
-        driverName: driver.name,
-        orderName: wizard.orderName.trim(),
-        originLat: wizard.originLat, originLng: wizard.originLng,
-        destLat: wizard.destLat,     destLng: wizard.destLng!,
-        tripStatus: "Ongoing",
+      const payload = {
+        driverId: wizard.assignedDriverId,
+        orderName: wizard.orderName,
+        startLongitude: wizard.originLng,
+        startLatitude: wizard.originLat,
+        destLongitude: wizard.destLng,
+        destLatitude: wizard.destLat,
+        started_at: new Date(),
       };
-  
-      setTrips(prev => [...prev, newTrip]);
-      setDrivers(prev => prev.map(d =>
-        d.id === driver.id
-          ? { ...d, available: false, tripStatus: "Ongoing", order: wizard.orderName.trim(), status: "En Route" }
-          : d
-      ));
+      socket.emit("startTrip", payload);
       pushLog(`[TRIP] ${driver.name} assigned → ${wizard.orderName} (${wizard.originLat.toFixed(4)},${wizard.originLng.toFixed(4)}) → (${wizard.destLat.toFixed(4)},${wizard.destLng!.toFixed(4)})`, "dispatch");
   
       setWizard({ step: "idle", originLat: 0, originLng: 0, destLat: null, destLng: null, orderName: "", assignedDriverId: null });
@@ -262,28 +266,30 @@ function FleetCompassApp() {
   
 
 const DeleteDriver = () =>{}
-const AddDriver = () =>{}
+const AddDriver = (name: string) =>{
+  fleetApi.createDriver(name);
+}
 const DeleteTrip = () =>{}
 const ShowRoute = () =>{}
 
 
 
-// useEffect(() => {
-//   fetch("http://localhost:3001/user/me", {
-//     credentials: "include",
-//   })
-//     .then(res => {
-//       if (!res.ok) throw new Error();
-//       return res.json();
-//     })
-//     .then(user => {
-//       setUser(user);
-//       navigate("/App");
-//     })
-//     .catch(() => {
-//       navigate("/");
-//     });
-// }, []);
+useEffect(() => {
+  fetch("http://localhost:3001/user/me", {
+    credentials: "include",
+  })
+    .then(res => {
+      if (!res.ok) throw new Error();
+      return res.json();
+    })
+    .then(user => {
+      setUser(user);
+      navigate("/App");
+    })
+    .catch(() => {
+      navigate("/");
+    });
+}, []);
 
   const latencyColor = kpi.latency > 30 ? "#ef4444" : kpi.latency > 20 ? "#f59e0b" : "#fbbf24";
 
