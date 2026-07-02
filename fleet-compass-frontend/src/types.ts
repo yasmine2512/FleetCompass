@@ -1,9 +1,9 @@
 export type Status = "Idle" | "En Route" | "Offline" ;
-import type { Dispatch, SetStateAction } from 'react';
 
 export interface Driver {
   id: number;
   name: string;
+  phone_number?: string;
   lat?: number;
   lng?: number;
   speed?: number;
@@ -16,7 +16,7 @@ export interface Driver {
 }
 
 export type LogType = "normal" | "info" | "warn" | "dispatch" | "dim";
-export type TripStatus = "Pending" | "Ongoing" | "Completed";
+export type TripStatus = "Pending" | "Ongoing" | "Completed" | "Failed";
 
 export interface LogEntry {
   id: number;
@@ -94,6 +94,19 @@ export interface Errors {
   confirm?: string;
   form?: string;
 }
+interface SettingsForm{
+  fullName:string;
+  email: string;
+  fleet:string;
+}
+
+export interface SettingsProps{
+  onClose: () => void;
+  setSettingsForm:(e:SettingsForm) => void;
+  settingsForm: SettingsForm;
+  handleSaveSettings: () => void;
+  handleDeleteAccount: () => void;
+}
 
 export type Field = "email" | "password" | "name" | "confirm" | "fleet";
 export interface InputProps {
@@ -125,7 +138,9 @@ export interface SearchPanelProps {
   onClose: () => void;
   onFindOnMap: (d: Driver) => void;
   onDeleteDriver: (id: number) => void;
-  onAddDriver: (name: string) => void;
+  onAddDriver: (name: string,phone:string) => void;
   onDeleteTrip: (id: number) => void;
   onShowRoute: (id:number) => void;
+  onSetTrips :(trip:Trip[]) => void;
 }
+

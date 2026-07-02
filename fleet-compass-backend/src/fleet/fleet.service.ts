@@ -87,6 +87,11 @@ export class FleetService {
       }, {
         removeOnComplete: true,
         removeOnFail: true,
+        attempts: 3, // Retry up to 3 times before calling it quits
+        backoff: {
+          type: 'exponential',
+          delay: 5000, // Wait 5s, then 10s, then 20s
+  }
       });
 
       client.emit('tripRequested', { tripId, status: 'Pending' });
@@ -100,9 +105,31 @@ export class FleetService {
     }
   }
 
-  async findAll(id: string) {
-    const result = await this.databaseService.pool.query(`
-      SELECT 
+async findAll(userId: string, page: number = 1, limit: number = 10, status?: string
+) {
+  const validatedPage = Math.max(1, page);
+  const validatedLimit = Math.max(1, limit);
+  const offset = (validatedPage - 1) * validatedLimit;
+  const queryParams: any[] = [userId];
+  let filterSql = `WHERE t.user_id = $1`;
+  if (status && status.trim() !== "") {
+    queryParams.push(status);
+    filterSql += ` AND t.status = $${queryParams.length}`;
+  }
+  const countResult = await this.databaseService.pool.query(`
+    SELECT COUNT(*) as total
+    FROM trips t
+    ${filterSql};
+  `, queryParams);
+  
+  const totalRecords = parseInt(countResult.rows[0].total, 10);
+  const totalPages = Math.ceil(totalRecords / validatedLimit);
+  queryParams.push(validatedLimit);
+  const limitIndex = queryParams.length;
+  queryParams.push(offset);
+  const offsetIndex = queryParams.length;
+  const mainQuery = `
+    SELECT 
       t.id,
       t.driver_id,
       d.name AS driver_name,
@@ -113,12 +140,21 @@ export class FleetService {
       t.duration_seconds
     FROM trips t
     LEFT JOIN drivers d ON d.id = t.driver_id
-    WHERE t.user_id = $1
-    ORDER BY t.started_at DESC;
-    `,[id]);
-
-    return result.rows;
-  }
+    ${filterSql}
+    ORDER BY t.started_at DESC
+    LIMIT $${limitIndex} OFFSET $${offsetIndex};
+  `;
+  const result = await this.databaseService.pool.query(mainQuery, queryParams);
+  return {
+    data: result.rows,
+    pagination: {
+      totalRecords,
+      totalPages,
+      currentPage: validatedPage,
+      limit: validatedLimit
+    }
+  };
+}
 
 
   async update(id: number,status: UpdateTripStatusDto) {
@@ -177,27 +213,21 @@ export class FleetService {
   };
   }
 
-  async createDriver(name : string ,user_id :string ){
+  async createDriver(name : string,phone:string ,user_id :string ){
      const client = await this.databaseService.pool.connect();
   try {
     await client.query("BEGIN");
-
-    // 1. create driver
     const driverRes = await client.query(
       `
-      INSERT INTO drivers (name, status, user_id)
-      VALUES ($1, 'Idle', $2)
+      INSERT INTO drivers (name,phone_number, status, user_id)
+      VALUES ($1,$2,'Idle', $3)
       RETURNING id, name, status
       `,
-      [name, user_id]
+      [name,phone, user_id]
     );
-
     const driver = driverRes.rows[0];
-
-    // 2. random position (NYC example or your map area)
     const lat = 40.7128 + (Math.random() - 0.5) * 0.05;
     const lng = -74.0060 + (Math.random() - 0.5) * 0.05;
-
     await client.query(
       `
       INSERT INTO driver_locations (driver_id, position, speed)
@@ -205,13 +235,12 @@ export class FleetService {
         $1,
         ST_SetSRID(ST_MakePoint($2, $3), 4326)::geography,
         0
-      )
-      `,
+      )`,
       [driver.id, lng, lat]
     );
 
     await client.query("COMMIT");
-    this.fleetEventsService.emit('driverCreated', driver);
+    this.fleetEventsService.emit('driverCreated', {driver,lng,lat});
   } catch (e) {
     await client.query("ROLLBACK");
     throw e;
@@ -225,6 +254,7 @@ export class FleetService {
       ` SELECT
     d.id,
     d.name,
+    d.phone_number,
     d.status,
 
     ST_Y(dl.position::geometry) AS lat,

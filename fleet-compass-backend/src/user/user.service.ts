@@ -107,4 +107,24 @@ res.clearCookie('access_token');
     message: 'Logged out'
   };
 }
+
+async updateMetadata(userId:string,updateDto:UpdateUserDto){
+  if (!userId) {
+      throw new BadRequestException('Target User ID is invalid.');
+    }
+    const { data, error } = await this.databaseService.supabase.auth.admin.updateUserById(
+      userId,
+      {user_metadata: {
+          fullName: updateDto.fullName,
+          fleet: updateDto.fleet,
+        }}
+    );
+    if (error) {
+      throw new BadRequestException(error.message);
+    }
+    return {
+      message: 'Profile metadata updated successfully',
+      user: data.user,
+    };
+}
 }

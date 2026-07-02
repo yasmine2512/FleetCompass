@@ -1,9 +1,9 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete,Res,Req ,UseGuards} from '@nestjs/common';
+import { Controller, Get, Post, Body, Put, Param, Delete,Res,Req ,UseGuards} from '@nestjs/common';
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { LoginUserDto } from './dto/login-user.dto';
-import type { Response } from 'express'
+import type { Response ,Request} from 'express'
 import { AuthGuard } from './auth.guard';
 @Controller('user')
 export class UserController {
@@ -29,7 +29,11 @@ export class UserController {
   logout(@Res({ passthrough: true }) res:Response){
     return this.userService.logout(res);
   }
-
+  @UseGuards(AuthGuard)
+  @Put('update-profile')
+  updateUser(@Req() req: Request,updateDto : UpdateUserDto) {
+    return this.userService.updateMetadata(req.user!.id,updateDto)
+  }
 
   @Get('me')
   @UseGuards(AuthGuard)

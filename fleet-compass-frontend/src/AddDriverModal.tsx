@@ -1,8 +1,19 @@
 import { useState } from "react";
 
-function AddDriverModal({ onAdd, onCancel }: { onAdd: (name: string) => void; onCancel: () => void }) {
+function AddDriverModal({ onAdd, onCancel }: { onAdd: (name: string, phone: string) => void; onCancel: () => void }) {
   const [name, setName] = useState("");
-  const valid = name.trim().length > 1;
+  const [phone, setPhone] = useState("");
+  
+  // Basic layout criteria validation checks
+  const valid = name.trim().length > 1 && phone.trim().length >= 10;
+
+  // Helper routine to ensure all inputs submit identical arguments seamlessly
+  const handleSubmit = () => {
+    if (valid) {
+      onAdd(name.trim(), phone.trim());
+    }
+  };
+
   return (
     <div style={{
       position: "absolute", inset: 0, zIndex: 10,
@@ -15,12 +26,14 @@ function AddDriverModal({ onAdd, onCancel }: { onAdd: (name: string) => void; on
         boxShadow: "0 0 32px rgba(99,102,241,0.2)",
       }}>
         <p style={{ color: "#a5b4fc", fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 14 }}>Add New Driver</p>
+        
+        {/* Driver Name Input Element */}
         <label style={{ fontSize: 10, color: "#64748b", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", display: "block", marginBottom: 6 }}>Driver Name</label>
         <input
-          autoFocus
+          autoFocus /* Keeps initial system focus safely localized here */
           value={name}
           onChange={e => setName(e.target.value)}
-          onKeyDown={e => e.key === "Enter" && valid && onAdd(name.trim())}
+          onKeyDown={e => e.key === "Enter" && handleSubmit()}
           placeholder="e.g. D-KILO"
           style={{
             width: "100%", background: "rgba(30,41,59,0.7)", border: "1px solid rgba(51,65,85,0.6)",
@@ -28,15 +41,32 @@ function AddDriverModal({ onAdd, onCancel }: { onAdd: (name: string) => void; on
             outline: "none", fontFamily: "inherit", marginBottom: 16,
           }}
         />
+
+        {/* Driver Phone Input Element */}
+        <label style={{ fontSize: 10, color: "#64748b", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", display: "block", marginBottom: 6 }}>Phone Number</label>
+        <input
+          value={phone}
+          onChange={e => setPhone(e.target.value)}
+          onKeyDown={e => e.key === "Enter" && handleSubmit()}
+          placeholder="e.g. +15550199"
+          style={{
+            width: "100%", background: "rgba(30,41,59,0.7)", border: "1px solid rgba(51,65,85,0.6)",
+            borderRadius: 8, padding: "9px 11px", color: "#e2e8f0", fontSize: 13,
+            outline: "none", fontFamily: "inherit", marginBottom: 16,
+          }}
+        />
+
+        {/* Modal Action Options Row */}
         <div style={{ display: "flex", gap: 8 }}>
           <button
-            onClick={() => valid && onAdd(name.trim())}
+            onClick={handleSubmit}
             style={{
               flex: 1, padding: "8px 0", borderRadius: 8, border: "none", cursor: valid ? "pointer" : "not-allowed",
               background: valid ? "linear-gradient(135deg,#6366f1,#8b5cf6)" : "rgba(51,65,85,0.4)",
               color: valid ? "#fff" : "#475569", fontSize: 12, fontWeight: 700, letterSpacing: "0.05em",
             }}
           >Add Driver</button>
+          
           <button
             onClick={onCancel}
             style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid rgba(51,65,85,0.5)", background: "transparent", color: "#64748b", fontSize: 12, cursor: "pointer" }}
@@ -46,4 +76,5 @@ function AddDriverModal({ onAdd, onCancel }: { onAdd: (name: string) => void; on
     </div>
   );
 }
-export default AddDriverModal
+
+export default AddDriverModal;

@@ -1,5 +1,5 @@
-import { useEffect,useRef } from 'react';
-import type {Driver ,LogType,Status,TripWizard,MapProps} from './types'
+import { useEffect, useRef } from 'react';
+import type { Driver, LogType, Status, TripWizard, MapProps } from './types'
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -41,85 +41,87 @@ function dispatchIconSvg() {
       <line x1="24" y1="18" x2="32" y2="18" stroke="#60a5fa" stroke-width="1.5"/>
     </svg>`;
 }
+
 const STATUS_COLORS: Record<Status, string> = {
   "Idle": "#4ade80",
   "En Route": "#60a5fa",
   "Offline": "#f59e0b",
 };
 
+// Helper function to build fresh popup HTML strings using the absolute latest state variables
+function getDriverPopupHtml(driver: Driver): string {
+  const color = STATUS_COLORS[driver.status] ?? "#fff";
+  return `
+    <div class="driver-popup">
+      <h3>
+        <svg width="10" height="10" viewBox="0 0 10 10"><circle cx="5" cy="5" r="5" fill="${color}"/></svg>
+        ${driver.name}
+      </h3>
+      <div class="stat-row"><span>Status</span><span class="status-badge">${driver.status}</span></div>
+      <div class="stat-row"><span>Speed</span><span class="stat-val">${driver.speed?.toFixed(2) ?? "0.00"} mph</span></div>
+      <div class="stat-row"><span>Order</span><span class="stat-val">${driver.currentTrip?.orderName ?? "No active order"}</span></div>
+      <div class="stat-row"><span>Lat / Lng</span><span class="stat-val">${driver.lat?.toFixed(4)}, ${driver.lng?.toFixed(4)}</span></div>
+      <div class="stat-row"><span>Signal</span><span class="stat-val" style="color:#4ade80;">Strong</span></div>
+    </div>`;
+}
 
-function LeafletMap({drivers, onAddLog , wizard, onMapClick, onFocusDriver,setDispatch, routeCoordinates,setRouteCoordinates,flyToDriver}: MapProps){
-
+function LeafletMap({ drivers, onAddLog, wizard, onMapClick, onFocusDriver, setDispatch, routeCoordinates, setRouteCoordinates, flyToDriver }: MapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const mapRef      = useRef<any>(null);
+  const mapRef = useRef<any>(null);
   const dispatchRef = useRef<any>(null);
   const markersRef = useRef<Map<number, L.Marker>>(new Map());
   const driverDataRef = useRef<Map<number, Driver>>(new Map());
   const destMarkerRef = useRef<any>(null);
   const startMarkerRef = useRef<L.Marker | null>(null);
   const endMarkerRef = useRef<L.Marker | null>(null);
+  const routeRef = useRef<L.Polyline | null>(null);
 
+  /* ── Smooth Camera FlyTo Target Sync ── */
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !flyToDriver) return;
+    map.setView([flyToDriver.lat, flyToDriver.lng], 15, { animate: true });
+  }, [flyToDriver]);
 
- 
-useEffect(()=>{
-const map = mapRef.current;
-  if (!map || !flyToDriver) return;
-  if (mapRef.current) {
-        mapRef.current.setView([flyToDriver.lat, flyToDriver.lng], 15, { animate: true });
-      }
-},[flyToDriver]);
-
-  /* ── init map once ── */
+  /* ── Init map layout context once ── */
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
 
     const map = L.map(containerRef.current, {
-  center: [40.7128, -74.006],
-  zoom: 13,
-  zoomControl: false,
-  attributionControl: true,
+      center: [40.7128, -74.006],
+      zoom: 13,
+      zoomControl: false,
+      attributionControl: true,
     });
-     mapRef.current = map;
+    mapRef.current = map;
     L.tileLayer(
       "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
       { attribution: "&copy; CARTO", subdomains: "abcd", maxZoom: 19 }
     ).addTo(map);
     L.control.zoom({ position: "bottomright" }).addTo(map);
 
-map.on("click", (e: L.LeafletMouseEvent) => {
-  const { lat, lng } = e.latlng;
+    map.on("click", (e: L.LeafletMouseEvent) => {
+      const { lat, lng } = e.latlng;
+      dispatchRef.current?.remove();
 
-  // Remove previous dispatch marker
-  dispatchRef.current?.remove();
+      const icon = L.divIcon({
+        html: dispatchIconSvg(),
+        className: "",
+        iconSize: [36, 36],
+        iconAnchor: [18, 18],
+      });
 
-  const icon = L.divIcon({
-    html: dispatchIconSvg(),
-    className: "",
-    iconSize: [36, 36],
-    iconAnchor: [18, 18],
-  });
+      dispatchRef.current = L.marker([lat, lng], { icon }).addTo(map);
+      setDispatch({ lat, lng });
+    });
 
-  dispatchRef.current = L.marker([lat, lng], { icon }).addTo(map);
-
-  // Show React popup
-  setDispatch({
-    lat,
-    lng,
-  });
-
-  // onAddLog(
-  //   `[DISPATCH] New task created at ${lat.toFixed(
-  //     5
-  //   )}, ${lng.toFixed(5)}`,
-  //   "dispatch"
-  // );
-});
-    mapRef.current = map;
-    return () => { map.remove(); mapRef.current = null; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => {
+      map.remove();
+      mapRef.current = null;
+    };
   }, []);
 
-/* ── wire map click to parent handler ── */
+  /* ── Wire map click to parent handler ── */
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -128,70 +130,45 @@ map.on("click", (e: L.LeafletMouseEvent) => {
     return () => map.off("click", handler);
   }, [onMapClick]);
 
-  /* ── show/hide dispatch popup (non-wizard mode) ── */
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || wizard.step !== "idle") return;
-    // handled via onMapClick → parent calls dispatch logic externally
-  }, [wizard.step]);
-
-  /* ── destination marker when wizard is in pick-destination step ── */
+  /* ── Destination marker logic (wizard state handler) ── */
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
     if (destMarkerRef.current) { map.removeLayer(destMarkerRef.current); destMarkerRef.current = null; }
     if (wizard.step === "assign" && wizard.destLat !== null && wizard.destLng !== null) {
-      const icon = L.divIcon({ html: destinationIconSvg(), className: "", iconSize: [32,38], iconAnchor: [16,38], popupAnchor: [0,-38] });
+      const icon = L.divIcon({ html: destinationIconSvg(), className: "", iconSize: [32, 38], iconAnchor: [16, 38], popupAnchor: [0, -38] });
       destMarkerRef.current = L.marker([wizard.destLat, wizard.destLng], { icon })
         .addTo(map)
         .bindPopup(`<div style="font-family:monospace;font-size:11px;color:#fbbf24;padding:3px 5px;"><b>Destination</b><br><span style="color:#94a3b8;">${wizard.destLat.toFixed(5)}, ${wizard.destLng.toFixed(5)}</span></div>`)
         .openPopup();
     }
-  }, [wizard.destLat, wizard.destLng, wizard.step, L]);
-
+  }, [wizard.destLat, wizard.destLng, wizard.step]);
 
   /* ── Draw Route ── */
-const routeRef = useRef<L.Polyline | null>(null);
-
-useEffect(() => {
+  useEffect(() => {
     const map = mapRef.current;
-    if (!map ) return;
-    if (routeRef.current) {
-    map.removeLayer(routeRef.current);
-    routeRef.current = null;
-  }
-  if (startMarkerRef.current) {
-    map.removeLayer(startMarkerRef.current);
-    startMarkerRef.current = null;
-  }
-  if (endMarkerRef.current) {
-    map.removeLayer(endMarkerRef.current);
-    endMarkerRef.current = null;
-  }
-  if (!routeCoordinates || routeCoordinates.length === 0) return;
-    routeRef.current = L.polyline( routeCoordinates as [number, number][], {
-        color: "#3b82f6",
-        weight: 3,
-        opacity: 0.6,
+    if (!map) return;
+    if (routeRef.current) { map.removeLayer(routeRef.current); routeRef.current = null; }
+    if (startMarkerRef.current) { map.removeLayer(startMarkerRef.current); startMarkerRef.current = null; }
+    if (endMarkerRef.current) { map.removeLayer(endMarkerRef.current); endMarkerRef.current = null; }
+    if (!routeCoordinates || routeCoordinates.length === 0) return;
+
+    routeRef.current = L.polyline(routeCoordinates as [number, number][], {
+      color: "#3b82f6",
+      weight: 3,
+      opacity: 0.6,
     }).addTo(map);
 
-  const start = routeCoordinates[0];
-  startMarkerRef.current = L.marker(start)
-    .addTo(map)
-    .bindPopup("Start");
+    const start = routeCoordinates[0];
+    startMarkerRef.current = L.marker(start).addTo(map).bindPopup("Start");
 
-  // 5. Create and save End Marker reference
-  const end = routeCoordinates[routeCoordinates.length - 1];
-  endMarkerRef.current = L.marker(end)
-    .addTo(map)
-    .bindPopup("End");
+    const end = routeCoordinates[routeCoordinates.length - 1];
+    endMarkerRef.current = L.marker(end).addTo(map).bindPopup("End");
 
     map.fitBounds(routeRef.current.getBounds());
-}, [routeCoordinates]);
+  }, [routeCoordinates]);
 
 
-
-  /* ── sync markers whenever drivers state changes ── */
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -199,127 +176,102 @@ useEffect(() => {
     const seen = new Set<number>();
 
     drivers.forEach(d => {
-        const lat = d.lat ?? 0;
-        const lng = d.lng ?? 0;
+      const lat = d.lat ?? 0;
+      const lng = d.lng ?? 0;
       seen.add(d.id);
-      const color = STATUS_COLORS[d.status] ?? "#ffffff";
-      const icon  = L.divIcon({ html: driverIconSvg(color), className: "", iconSize: [28,28], iconAnchor: [14,14], popupAnchor: [0,-18] });
-        const marker = markersRef.current.get(d.id);
-        driverDataRef.current.set(d.id, d);
-      if (marker && map.hasLayer(marker)) {
+      
+      // Update our reference map with the absolute latest driver fields
+      driverDataRef.current.set(d.id, d);
 
-        marker.setLatLng([lat,lng]);
-        marker.setIcon(
-      L.divIcon({
-        html: driverIconSvg(STATUS_COLORS[d.status]),
-        className: "",
-        iconSize: [28, 28],
-        iconAnchor: [14, 14],
-        popupAnchor: [0, -18],
-      })
-    );
+      const color = STATUS_COLORS[d.status] ?? "#ffffff";
+      const icon = L.divIcon({ 
+        html: driverIconSvg(color), 
+        className: "", 
+        iconSize: [28, 28], 
+        iconAnchor: [14, 14], 
+        popupAnchor: [0, -18] 
+      });
+
+      const marker = markersRef.current.get(d.id);
+
+      if (marker && map.hasLayer(marker)) {
+        marker.setLatLng([lat, lng]);
+        marker.setIcon(icon);
+
+        if (marker.isPopupOpen()) {
+          marker.setPopupContent(getDriverPopupHtml(d));
+        }
       } else {
         const m = L.marker([lat, lng], { icon }).addTo(map);
         m.bindPopup(""); 
         (m as any).driverId = d.id;
-        // driverDataRef.current.set(d.id, d);
-        m.on("click", (ev :any) => {
-           const id = (m as any).driverId;
-           ev.originalEvent?.stopPropagation();
-          // if wizard is in assign step, clicking a driver assigns them
-          onFocusDriver(d);
-          const latest = driverDataRef.current.get(id);
-           if (!latest) return;
-           const color = STATUS_COLORS[latest.status] ?? "#fff";
-          const html = `<div class="driver-popup">
-                <h3>
-                  <svg width="10" height="10" viewBox="0 0 10 10"><circle cx="5" cy="5" r="5" fill="${color}"/></svg>
-                  ${latest.name}
-                </h3>
-                <div class="stat-row"><span>Status</span><span class="status-badge">${latest.status}</span></div>
-                <div class="stat-row"><span>Speed</span><span class="stat-val">${latest.speed?.toFixed(4)} mph</span></div>
-                <div class="stat-row"><span>Order</span><span class="stat-val">${latest.currentTrip?.orderName ?? "No active order"}</span></div>
-                <div class="stat-row"><span>Lat / Lng</span><span class="stat-val">${latest.lat?.toFixed(4)}, ${latest.lng?.toFixed(4)}</span></div>
-                <div class="stat-row"><span>Signal</span><span class="stat-val" style="color:#4ade80;">Strong</span></div>
-              </div>`
-          m.setPopupContent(html);
-           m.openPopup();
-          onAddLog(`[INSPECT] ${latest.name} selected — ${latest.speed}mph, status: ${latest.status}`, "info");
+
+        m.on("click", (ev: any) => {
+          ev.originalEvent?.stopPropagation();
+          
+          const latestDriverState = driverDataRef.current.get((m as any).driverId);
+          if (!latestDriverState) return;
+
+          onFocusDriver(latestDriverState);
+          m.bindPopup(getDriverPopupHtml(latestDriverState)).openPopup();
+          
+          onAddLog(`[INSPECT] ${latestDriverState.name} selected — status: ${latestDriverState.status}`, "info");
         });
+
         markersRef.current.set(d.id, m);
       }
     });
-
-    // remove stale markers
     markersRef.current.forEach((m, id) => {
-      if (!seen.has(id)) { map.removeLayer(m); markersRef.current.delete(id); }
+      if (!seen.has(id)) { 
+        map.removeLayer(m); 
+        markersRef.current.delete(id); 
+        driverDataRef.current.delete(id);
+      }
     });
-  }, [drivers, L, onAddLog, onFocusDriver]);
+  }, [drivers, onAddLog, onFocusDriver]);
 
-  /* ── pan to ongoing driver ── */
   const focusOnDriver = (d: Driver) => {
     mapRef.current?.setView([d.lat, d.lng], 15, { animate: true });
   };
-  // expose via ref so parent can call it
+  
   (LeafletMap as any)._focusOnDriver = focusOnDriver;
 
   return (
     <div
       ref={containerRef}
-      style={{ position: "fixed", left: 420, top: 0, right: 0, bottom: 0, zIndex: 1 ,
-      cursor: wizard.step === "pick-destination" ? "crosshair" : "grab",
+      style={{
+        position: "fixed", left: 320, top: 0, right: 0, bottom: 0, zIndex: 1,
+        cursor: wizard.step === "pick-destination" ? "crosshair" : "grab",
       }}
     >
-  
-
       {/* ── Floating Clear Button ── */}
       {routeCoordinates && routeCoordinates.length > 0 && (
         <button
-      onClick={() => setRouteCoordinates([])}
-      title="Close Route History"
-      style={{
-        position: 'absolute',
-        top: '20px',
-        left: '20px',
-        zIndex: 1000, // Floats safely on top of Leaflet layers
-        background: 'transparent',
-        border: 'none',
-        cursor: 'pointer',
-        padding: 0,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        outline: 'none',
-        transition: 'transform 0.2s ease',
-      }}
-      onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.1)')}
-      onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
-    >
-      <svg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
-        {/* Outer ambient radar ring */}
-        <circle cx="20" cy="20" r="16" fill="#ef4444" fillOpacity="0.1" />
-        
-        {/* Mid-tier steady ring */}
-        <circle cx="20" cy="20" r="11" fill="#ef4444" fillOpacity="0.2" />
-        
-        {/* Inner core button background */}
-        {/* <circle cx="20" cy="20" r="6" fill="#f87171" /> */}
-        
-        {/* Dynamic Pulsing Action Ring */}
-        <circle cx="20" cy="20" r="6" fill="#ef4444" opacity="0.6">
-          <animate attributeName="r" values="6;16;6" dur="2s" repeatCount="indefinite" />
-          <animate attributeName="opacity" values="0.6;0;0.6" dur="2s" repeatCount="indefinite" />
-        </circle>
-        
-        {/* Diagonal X Reticle Line 1 */}
-        <line x1="12" y1="12" x2="28" y2="28" stroke="#f87171" strokeWidth="2" strokeLinecap="round" />
-        
-        {/* Diagonal X Reticle Line 2 */}
-        <line x1="28" y1="12" x2="12" y2="28" stroke="#f87171" strokeWidth="2" strokeLinecap="round" />
-      </svg>
-    </button>
+          onClick={() => setRouteCoordinates([])}
+          title="Close Route History"
+          style={{
+            position: 'absolute', top: '20px', left: '20px', zIndex: 1000,
+            background: 'transparent', border: 'none', cursor: 'pointer', padding: 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            outline: 'none', transition: 'transform 0.2s ease',
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.1)')}
+          onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
+        >
+          <svg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="20" cy="20" r="16" fill="#ef4444" fillOpacity="0.1" />
+            <circle cx="20" cy="20" r="11" fill="#ef4444" fillOpacity="0.2" />
+            <circle cx="20" cy="20" r="6" fill="#ef4444" opacity="0.6">
+              <animate attributeName="r" values="6;16;6" dur="2s" repeatCount="indefinite" />
+              <animate attributeName="opacity" values="0.6;0;0.6" dur="2s" repeatCount="indefinite" />
+            </circle>
+            <line x1="12" y1="12" x2="28" y2="28" stroke="#f87171" strokeWidth="2" strokeLinecap="round" />
+            <line x1="28" y1="12" x2="12" y2="28" stroke="#f87171" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+        </button>
       )}
-</div>
+    </div>
   );
 }
-export default LeafletMap
+
+export default LeafletMap;

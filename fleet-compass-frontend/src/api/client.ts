@@ -9,8 +9,13 @@ export const api = axios.create({
 export const fleetApi = {
   getInitialState: () => api.get("/fleets"),
   getDrivers: () => api.get("/fleets/drivers"),
-  createDriver: (name: string) => api.post("/fleets/drivers", {name}),
-  getTrips: () => api.get("/fleets"),
+  createDriver: (name: string,phone: string) => api.post("/fleets/drivers", {name,phone}),
+  getTrips: (page: number, limit: number, status?: string) => api.get("/fleets",{params: {
+      page,
+      limit,
+      status: status || undefined 
+    }
+  }),
   createTrip: (data: any) => api.post("/fleets/trips", data),
   deleteTrip: (id: string) => api.delete(`/fleets/${id}`),
   deleteDriver: (id: number) => api.delete(`/fleets/drivers/${id}`),
@@ -21,6 +26,13 @@ export const fleetApi = {
       withCredentials: true,
     }
   ),
+  updateProfile: (fullName: string, fleet: string) => {
+    return api.put(
+      "http://localhost:3001/user/update-profile",
+      { fullName, fleet },
+      { withCredentials: true }
+    );
+  }
 };
 
 export const socket = io("http://localhost:3001", {

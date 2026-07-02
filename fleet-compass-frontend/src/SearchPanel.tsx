@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState,useEffect } from "react";
 import type { SearchPanelProps ,Driver,Status,TripStatus} from "./types";
 import AddDriverModal from "./AddDriverModal";
+import { fleetApi } from "./api/client";
 const TH_STYLE: React.CSSProperties = {
   padding: "10px 14px", textAlign: "left", fontSize: 10, fontWeight: 700,
   letterSpacing: "0.08em", textTransform: "uppercase", color: "#64748b",
@@ -26,17 +27,23 @@ const AVAIL_STYLE: Record<Status, React.CSSProperties> = {
   "En Route": { color: "#60a5fa", background: "rgba(68, 71, 239, 0.1)",  border: "1px solid rgba(68, 114, 239, 0.3)"  },
 };
 
+
 const TRIP_STATUS_STYLE: Record<TripStatus, React.CSSProperties> = {
   Pending:   { color: "#f59e0b", background: "rgba(245,158,11,0.10)",  border: "1px solid rgba(245,158,11,0.3)"  },
   Ongoing:   { color: "#4ade80", background: "rgba(34,197,94,0.10)",   border: "1px solid rgba(34,197,94,0.3)"   },
   Completed: { color: "#64748b", background: "rgba(100,116,139,0.10)", border: "1px solid rgba(100,116,139,0.3)" },
+  Failed: { color: "#f87171", background: "rgba(239,68,68,0.10)",  border: "1px solid rgba(239,68,68,0.3)"   },
 };
 
-function SearchPanel({ drivers, trips, onClose, onFindOnMap, onDeleteDriver, onAddDriver, onDeleteTrip, onShowRoute }: SearchPanelProps) {
+function SearchPanel({ drivers, trips, onClose, onFindOnMap, onDeleteDriver, onAddDriver, onDeleteTrip, onShowRoute,onSetTrips}: SearchPanelProps) {
   const [tab,        setTab]        = useState<"drivers" | "trips">("drivers");
   const [q,          setQ]          = useState("");
   const [showAdd,    setShowAdd]    = useState(false);
   const [confirmDel, setConfirmDel] = useState<{ kind: "driver" | "trip"; id: string | number } | null>(null);
+  const [totalPages, setTotalPages] = useState(1);
+  const [tripPage, setTripPage] = useState(1);
+  const [statusFilter, setStatusFilter] = useState("");
+  const [totalTripsCount, setTotalTripsCount] = useState(0);
 
   /* ── filtered lists ── */
   const filteredDrivers = drivers.filter(d =>
@@ -51,8 +58,8 @@ function SearchPanel({ drivers, trips, onClose, onFindOnMap, onDeleteDriver, onA
   const resultCount = tab === "drivers" ? filteredDrivers.length : filteredTrips.length;
 
   /* ── helpers ── */
-  const handleAddDriver = (name: string) => {
-    onAddDriver(name);
+  const handleAddDriver = (name: string,phone:string) => {
+    onAddDriver(name,phone);
     setShowAdd(false);
   };
   const handleDeleteDriver = (id: number) => {
@@ -71,6 +78,40 @@ function SearchPanel({ drivers, trips, onClose, onFindOnMap, onDeleteDriver, onA
       setConfirmDel({ kind: "trip", id });
     }
   };
+
+
+const fetchTripsData = async () => {
+  try {
+    // 1. Call the updated client function with your active states
+    const response = await fleetApi.getTrips(
+      tripPage, 
+      10, 
+      statusFilter
+    );
+
+    // 2. Parse out the structured pagination blocks sent by NestJS
+    onSetTrips(response.data.data);
+    setTotalPages(response.data.pagination.totalPages);
+    setTotalTripsCount(response.data.pagination.totalRecords);
+    
+  } catch (error) {
+    console.error("Error retrieving historical logs via service context:", error);
+  }
+};
+
+// Auto-trigger data refresh when options shift
+useEffect(() => {
+  if (tab === "trips") {
+    setTripPage(1);
+    fetchTripsData();
+  }
+}, [tab, tripPage, statusFilter]);
+
+// Reset page offset back to 1 if filter criteria changes mid-view
+const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+  setStatusFilter(e.target.value);
+  setTripPage(1);
+};
 
   /* ── shared panel button style ── */
   const tabBtn = (active: boolean): React.CSSProperties => ({
@@ -136,6 +177,24 @@ function SearchPanel({ drivers, trips, onClose, onFindOnMap, onDeleteDriver, onA
 
           {/* spacer */}
           <div style={{ flex: 1 }} />
+          {/* Status Dropdown Filter*/}
+          {tab === "trips" && (
+          <div style={{ padding: "0 10px", display: "flex", alignItems: "center" }}>
+            <select
+              value={statusFilter}
+              onChange={handleStatusChange}
+              style={{
+                background: "rgba(30,41,59,0.6)", border: "1px solid rgba(51,65,85,0.5)",
+                borderRadius: 6, color: "#cbd5e1", fontSize: 11, padding: "4px 8px",
+                outline: "none", cursor: "pointer", fontFamily: "inherit"
+              }}
+            >
+              <option value="">All Statuses</option>
+              <option value="Ongoing">Ongoing</option>
+              <option value="Completed">Completed</option>
+            </select>
+          </div>
+        )}
 
           {/* search input */}
           <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "0 12px", borderLeft: "1px solid rgba(51,65,85,0.35)" }}>
@@ -176,7 +235,7 @@ function SearchPanel({ drivers, trips, onClose, onFindOnMap, onDeleteDriver, onA
         </div>
 
         {/* ── table area ── */}
-        <div style={{ overflowY: "auto", flex: 1 }}>
+        <div style={{ overflowY: "auto", flex: 1 ,minHeight: "500px"}}>
 
       {/* ────── DRIVERS TAB ────── */}
       {tab === "drivers" && (
@@ -375,9 +434,53 @@ function SearchPanel({ drivers, trips, onClose, onFindOnMap, onDeleteDriver, onA
             )}
           </tbody>
         </table>
+        
       )}
     </div>
-
+      {/* ── Pagination UI Control Segment Footer (Trips Only) ── */}
+    {tab === "trips" && totalPages > 1 && (
+      <div style={{
+        padding: "10px 18px",
+        borderTop: "1px solid rgba(51,65,85,0.4)",
+        background: "rgba(15,23,42,0.6)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        flexShrink: 0
+      }}>
+        <span style={{ fontSize: 11, color: "#64748b", fontFamily: "monospace" }}>
+          Page {tripPage} of {totalPages}
+        </span>
+        
+        <div style={{ display: "flex", gap: 6 }}>
+          <button
+            disabled={tripPage === 1}
+            onClick={() => setTripPage(prev => Math.max(1, prev - 1))}
+            style={{
+              padding: "5px 12px", background: tripPage === 1 ? "rgba(30,41,59,0.2)" : "rgba(30,41,59,0.8)",
+              border: "1px solid rgba(51,65,85,0.4)", borderRadius: 6,
+              color: tripPage === 1 ? "#475569" : "#cbd5e1", fontSize: 11, fontWeight: 600,
+              cursor: tripPage === 1 ? "not-allowed" : "pointer"
+            }}
+          >
+            Previous
+          </button>
+          
+          <button
+            disabled={tripPage === totalPages}
+            onClick={() => setTripPage(prev => Math.min(totalPages, prev + 1))}
+            style={{
+              padding: "5px 12px", background: tripPage === totalPages ? "rgba(30,41,59,0.2)" : "rgba(30,41,59,0.8)",
+              border: "1px solid rgba(51,65,85,0.4)", borderRadius: 6,
+              color: tripPage === totalPages ? "#475569" : "#cbd5e1", fontSize: 11, fontWeight: 600,
+              cursor: tripPage === totalPages ? "not-allowed" : "pointer"
+            }}
+          >
+            Next
+          </button>
+        </div>
+      </div>
+    )}
     {/* ── Add Driver modal overlay ── */}
     {showAdd && <AddDriverModal onAdd={handleAddDriver} onCancel={() => setShowAdd(false)} />}
   </div>

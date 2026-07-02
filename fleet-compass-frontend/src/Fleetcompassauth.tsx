@@ -42,7 +42,7 @@ export default function FleetCompassAuth() {
     if (!form.email.trim())           e.email   = "Email address is required.";
     else if (!/\S+@\S+\.\S+/.test(form.email)) e.email = "Enter a valid email address.";
     if (!form.password)               e.password = "Password is required.";
-    // else if (form.password.length < 8) e.password = "Password must be at least 8 characters.";
+    else if (form.password.length < 6) e.password = "Password must be at least 6 characters.";
     if (mode === "signup") {
       if (form.password !== form.confirm) e.confirm = "Passwords do not match.";
       if (!agreed) e.form = "You must accept the terms to continue.";
@@ -70,39 +70,64 @@ export default function FleetCompassAuth() {
   };
 
 const handleLogin = async () => {
-
-      const response = await axios.post(
-    "http://localhost:3001/user/login",
-    {
-      email: form.email,
-      password: form.password,
-    },
-    {
-      withCredentials: true, // important for HttpOnly cookies
+   setErrors({});
+  try {
+    const response = await axios.post(
+      "http://localhost:3001/user/login",
+      {
+        email: form.email,
+        password: form.password,
+      },
+      {
+        withCredentials: true, // important for HttpOnly cookies
+      }
+    );
+    setSuccess(true);
+    console.log(response.data);
+    navigate("/App");
+    
+  } catch (error : any) {
+    console.error("Login failed:", error);
+    if (error.response && error.response.data) {
+      setErrors({form: error.response.data.message || "Invalid credentials."});
+    } else {
+      setErrors({form:"Server error or network issue. Please try again later."});
     }
-  );
-  setSuccess(true);
-  console.log(response.data);
-  navigate("/App");
   }
+};
 
 const handleSignup = async () => {
-
-  const response = await axios.post(
-    "http://localhost:3001/user/signup",
-    {
-      fullName: form.name,
-      fleet: form.fleet,
-      email: form.email,
-      password: form.password,
-    },
-    {
-      withCredentials: true,
+  setErrors({});
+  
+  try {
+    const response = await axios.post(
+      "http://localhost:3001/user/signup",
+      {
+        fullName: form.name,
+        fleet: form.fleet,
+        email: form.email,
+        password: form.password,
+      },
+      {
+        withCredentials: true,
+      }
+    );
+    console.log(response.data);
+    setSuccess(true);
+    navigate("/App");
+    
+  } catch (error: any) {
+    console.error("Signup failed:", error);
+    if (error.response && error.response.data) {
+      setErrors({
+        form: error.response.data.message || "Failed to create account."
+      });
+    } else {
+      setErrors({
+        form: "Server error or network issue. Please try again later."
+      });
     }
-  );
-  console.log(response.data);
-  setSuccess(true);
-  navigate("/App");
+  }
 };
 
   return (
@@ -265,7 +290,7 @@ const handleSignup = async () => {
                 id="password" label="Password"
                 type={showPwd ? "text" : "password"}
                 value={form.password} error={errors.password}
-                placeholder="Min. 8 characters" autoComplete={mode === "login" ? "current-password" : "new-password"}
+                placeholder="Min. 6 characters" autoComplete={mode === "login" ? "current-password" : "new-password"}
                 onChange={handleChange}
                 icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>}
                 rightSlot={

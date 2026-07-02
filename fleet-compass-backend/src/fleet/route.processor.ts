@@ -73,6 +73,8 @@ export class RouteProcessor extends WorkerHost {
       await this.databaseService.pool.query(`UPDATE trips SET status = 'failed' WHERE id = $1`, [tripId]);
       this.fleetEventsService.emitToRoom(`trip:${tripId}`, 'error', {
         message: 'Failed to start trip due to routing error',
+        tripId,
+        driverId,
       });
     }
   }

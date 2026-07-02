@@ -2,6 +2,7 @@ import { useState,useRef,useEffect ,useCallback} from "react";
 import type { Driver ,LogEntry,KPI,LogType,TripStatus,Trip,TripWizard} from "./types";
 import KpiCard from './KpiCard';
 import Terminal from './Terminal';
+import Settings from "./Settings";
 import ThroughputChart from './ThroughputChart';
 import LeafletMap from "./LeafletMap";
 import TopBar from "./TopBar";
@@ -49,7 +50,8 @@ function FleetCompassApp() {
     step: "idle", originLat: 0, originLng: 0,
     destLat: null, destLng: null, orderName: "", assignedDriverId: null,
   });
-  const mapRef = useRef<any>(null); // ref to pan map
+  
+
 
 //REST api
 const [loading, setLoading] = useState(true);
@@ -73,10 +75,10 @@ useEffect(() => {
 
       const [driversRes, tripsRes] = await Promise.all([
         fleetApi.getDrivers(),
-        fleetApi.getTrips(),
+        fleetApi.getTrips(1,10,""),
       ]);
       setDrivers(driversRes.data);
-      setTrips(tripsRes.data);
+      setTrips(tripsRes.data.data);
       navigate("/App");
     } catch (err) {
       navigate("/");
@@ -86,28 +88,39 @@ useEffect(() => {
   })();
 }, []);
 
-
 // socket api
 useEffect(() => {
   socket.connect();
-  socket.on("connect", () => {
+  
+  const handleConnect = () => {
     console.log("Socket connected:", socket.id);
-  });
-  socket.on("tripRequested", (data) => {
+  };
+
+  const handleDriverCreated = (data: any) => {
+    setDrivers(prev => {
+      if (prev.some(d => d.id === data.driver.id)) return prev;
+      return [...prev, { ...data.driver, lat: data.lat, lng: data.lng, currentTrip: null, speed: 0 }];
+    });
+      pushLog(`[DRIVER] ${data.driver.name} initialized on map context`, "normal");
+  };
+
+  const handleTripRequested = (data: any) => {
     setTrips(prev => [
       ...prev,
       {
         id: data.tripId,
-        status: "Pending",
+        status: data.status,
       } as Trip,
     ]);
-  });
-  socket.on("tripStarted", (data) => {
+  };
+
+  const handleTripStarted = (data: any) => {
+    console.log("started:",data.orderName);
     const { tripId, driverId, orderName } = data;
     setTrips(prev =>
       prev.map(t =>
         t.id === tripId
-          ? { ...t, tripStatus: "Ongoing", orderName }
+          ? { ...t, status: "Ongoing", order_name: orderName }  
           : t
       )
     );
@@ -115,54 +128,80 @@ useEffect(() => {
       prev.map(d =>
         d.id === driverId
           ? { ...d, status: "En Route",
-                  order: data.orderName }
-          : d
-      )
-    );
-  });
-  socket.on("locationUpdate", (data) => {
-    const { driverId, latitude, longitude, speed } = data;
-    setDrivers(prev =>
-      prev.map(d =>
-        d.id === driverId
-          ? {...d,
-              lat: latitude,
-              lng: longitude,
-              speed,
+              currentTrip: {
+                id: tripId,
+                orderName: orderName,
+                status: "Ongoing"
+              }
             }
           : d
       )
     );
-  });
-  socket.on("tripCompleted", (data) => {
-    const { tripId, driverId } = data;
+  };
 
+  const handleLocationUpdate = (data: any) => {
+    const { driverId, latitude, longitude, speed } = data;
+    setDrivers(prev =>
+      prev.map(d =>
+        d.id === driverId
+          ? { ...d, lat: latitude, lng: longitude, speed }
+          : d
+      )
+    );
+  };
+
+  const handleTripCompleted = (data: any) => {
+    const { tripId, driverId } = data;
     setTrips(prev =>
       prev.map(t =>
-        t.id === tripId
-          ? { ...t, tripStatus: "Completed" }
-          : t
+        t.id === tripId ? { ...t, status: "Completed" } : t
       )
     );
     setDrivers(prev =>
       prev.map(d =>
-        d.id === driverId
-          ? { ...d, tripStatus: "Completed", status: "Idle",
-                  order: null ,speed: 0}
+        d.id === driverId ? { ...d, status: "Idle", speed: 0, currentTrip: undefined } : d
+      )
+    );
+  };
+
+  const handleSocketError = (data: any) => {
+    console.error("Socket error:", data.message);
+    pushLog(`[ERROR] ${data.message}`, "warn");
+    if (data.driverId) {
+    setDrivers(prev =>
+      prev.map(d =>
+        d.id === data.driverId
+          ? { ...d, status: "Idle", speed: 0, currentTrip: undefined }
           : d
       )
     );
-  });
-    socket.on("driverCreated", (driver) => {
-      setDrivers(prev => [...prev, driver]);
-      pushLog(`[DRIVER] ${driver.name} added`, "info");
-  });
-  socket.on("error", (data) => {
-    console.error("Socket error:", data.message);
-    pushLog(`[ERROR] ${data.message}`, "warn");
-  });
+  }
+  if (data.tripId) {
+    setTrips(prev =>prev.map(t =>
+         t.id === data.tripId
+          ? { ...t, status: "Failed" }
+          : t
+      )
+    );
+  }
+  };
+
+  socket.on("connect", handleConnect);
+  socket.on("driverCreated", handleDriverCreated);
+  socket.on("tripRequested", handleTripRequested);
+  socket.on("tripStarted", handleTripStarted);
+  socket.on("locationUpdate", handleLocationUpdate);
+  socket.on("tripCompleted", handleTripCompleted);
+  socket.on("error", handleSocketError);
 
   return () => {
+    socket.off("connect", handleConnect);
+    socket.off("driverCreated", handleDriverCreated);
+    socket.off("tripRequested", handleTripRequested);
+    socket.off("tripStarted", handleTripStarted);
+    socket.off("locationUpdate", handleLocationUpdate);
+    socket.off("tripCompleted", handleTripCompleted);
+    socket.off("error", handleSocketError);
     socket.disconnect();
   };
 }, []);
@@ -191,6 +230,7 @@ useEffect(() => {
   const handleMapClick = useCallback((lat: number, lng: number) => {
       if (wizard.step === "pick-destination") {
         // wizard step 1 complete — move to assign
+        setDispatchPopup(null);
         setWizard(w => ({ ...w, step: "assign", destLat: lat, destLng: lng }));
         pushLog(`[ORDER] Destination set at ${lat.toFixed(5)}, ${lng.toFixed(5)}`, "info");
         return;
@@ -198,14 +238,11 @@ useEffect(() => {
       if (wizard.step === "assign") return; // ignore clicks during assign step
       // normal dispatch popup
       setDispatchPopup({ lat, lng });
-      pushLog(`[DISPATCH] New task created at ${lat.toFixed(5)}, ${lng.toFixed(5)}`, "dispatch");
-       pushLog(`[DISPATCH] new warn`, "warn");
-       pushLog(`[DISPATCH] new dim`, "dim");
-       pushLog(`[DISPATCH] new normal`, "normal");
-       pushLog(`[DISPATCH] new info`, "info");
-      
-
-      
+      // pushLog(`[DISPATCH] New task created at ${lat.toFixed(5)}, ${lng.toFixed(5)}`, "dispatch");
+      //  pushLog(`[DISPATCH] new warn`, "warn");
+      //  pushLog(`[DISPATCH] new dim`, "dim");
+      //  pushLog(`[DISPATCH] new normal`, "normal");
+      //  pushLog(`[DISPATCH] new info`, "info");
     }, [wizard.step, pushLog]);
   
     /* ── driver focus (from search "Find on map" or driver click) ── */
@@ -277,8 +314,8 @@ try {
     pushLog("Couldn't delete driver", "warn");
   }
 }
-const AddDriver = (name: string) =>{
-  fleetApi.createDriver(name);
+const AddDriver = (name: string,phone:string) =>{
+  fleetApi.createDriver(name,phone);
   pushLog('[Drivers] Created new Driver',"info");
 }
 const DeleteTrip = (tripId:number) =>{
@@ -305,6 +342,44 @@ navigate("/");
   pushLog("Failed to Logout","warn")
  }
 }
+const [showSettings, setShowSettings] = useState(false);
+const [settingsForm, setSettingsForm] = useState({
+  fullName: "John Doe", 
+  email: "operator@fleetcompass.com", // Read-only view
+  fleet: "North Atlantic Logistics"
+});
+
+const handleSaveSettings = async() => {
+  console.log("Saving profile changes...", settingsForm);
+  try {
+    const response = await fleetApi.updateProfile(
+    settingsForm.fullName,
+    settingsForm.fleet
+  );
+    console.log("Profile updated:", response.data);
+    alert("Configuration saved successfully!");
+    const currentFullName = response.data.user.user_metadata.fullName;
+const currentFleet = response.data.user.user_metadata.fleet;
+console.log(currentFleet,currentFullName)
+    setShowSettings(false);
+
+  } catch (error: any) {
+    console.error("Failed to update metadata:", error);
+    if (error.response && error.response.data) {
+      alert(`Error updating settings: ${error.response.data.message}`);
+    } else {
+      alert("Network error. Unable to save settings.");
+    }
+  }
+};
+
+// Mock account deletion handler
+const handleDeleteAccount = () => {
+  if (confirm("Are you absolutely sure you want to delete your account? This action cannot be undone.")) {
+    console.log("Deleting account permanently...");
+    // Call your backend account deletion logic here
+  }
+};
 
   const latencyColor = kpi.latency > 30 ? "#ef4444" : kpi.latency > 20 ? "#f59e0b" : "#fbbf24";
 
@@ -333,6 +408,17 @@ navigate("/");
       <div className="Sidebar flex flex-col h-full bg-slate-900/90 backdrop-blur-xl border-r border-slate-700/50 overflow-hidden">
         {/* Header */}
         <div className="pt-5 px-5 flex-shrink-0">
+          {/* Settings Button (Top-Right Viewport Alignment) */}
+    <button 
+      onClick={() => setShowSettings(true)}
+      title="System Settings"
+      className="absolute top-5 right-5 p-2 rounded-lg border border-slate-700/50 bg-slate-800/40 text-slate-400 hover:text-slate-200 hover:bg-slate-800/80 hover:border-indigo-500/30 transition-all duration-200 cursor-pointer"
+    >
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      </svg>
+    </button>
           <div className="flex items-center gap-3 mb-1">
             <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
               <rect width="28" height="28" rx="7" fill="rgba(99,102,241,0.15)" stroke="rgba(99,102,241,0.4)" strokeWidth="1"/>
@@ -443,6 +529,17 @@ navigate("/");
           onAddDriver= {AddDriver}
           onDeleteTrip={DeleteTrip}
           onShowRoute ={showRoute}
+          onSetTrips ={(trip:Trip[]) => setTrips(trip)}
+        />
+      )}
+
+      {showSettings &&(
+        <Settings 
+        onClose={() => setShowSettings(false)}
+        setSettingsForm={setSettingsForm}
+        settingsForm= {settingsForm}
+        handleSaveSettings={handleSaveSettings}
+        handleDeleteAccount={handleDeleteAccount}
         />
       )}
 
