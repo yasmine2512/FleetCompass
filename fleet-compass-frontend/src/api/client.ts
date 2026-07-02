@@ -14,6 +14,13 @@ export const fleetApi = {
   createTrip: (data: any) => api.post("/fleets/trips", data),
   deleteTrip: (id: string) => api.delete(`/fleets/${id}`),
   deleteDriver: (id: number) => api.delete(`/fleets/drivers/${id}`),
+  getRoute: (id:number) => api.get(`fleets/${id}`),
+  logout:()=> api.post(
+    "http://localhost:3001/user/logout",
+    {
+      withCredentials: true,
+    }
+  ),
 };
 
 export const socket = io("http://localhost:3001", {

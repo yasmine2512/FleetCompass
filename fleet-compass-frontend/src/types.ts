@@ -1,17 +1,5 @@
 export type Status = "Idle" | "En Route" | "Offline" ;
-// export interface Driver {
-//   id: number;
-//   name: string;
-//   lat: number;
-//   lng: number;
-//   speed: number;
-//   status: Status;
-//   vx: number;
-//   vy: number;
-//   order: string;
-//   tripStatus: TripStatus;
-//   available: boolean;
-// }
+import type { Dispatch, SetStateAction } from 'react';
 
 export interface Driver {
   id: number;
@@ -36,18 +24,6 @@ export interface LogEntry {
   msg: string;
   type: LogType;
 }
-
-// export interface Trip {
-//   id: string;
-//   driverId: number;
-//   driverName: string;
-//   orderName: string;
-//   originLat: number;
-//   originLng: number;
-//   destLat: number;
-//   destLng: number;
-//   tripStatus: TripStatus;
-// }
 
 export interface Trip {
   id: number;
@@ -86,6 +62,15 @@ export interface MapProps {
   wizard: TripWizard;
   onMapClick: (lat: number, lng: number) => void;
   onFocusDriver: (d: Driver) => void;
+  setDispatch: React.Dispatch<
+    React.SetStateAction<{
+      lat: number;
+      lng: number;
+    } | null>
+  >;
+  routeCoordinates: [number, number][]|[];
+  setRouteCoordinates:(coordinates: [number, number][]|[]) => void;
+  flyToDriver : Driver | undefined;
 }
 
 export interface KPI {
@@ -141,6 +126,6 @@ export interface SearchPanelProps {
   onFindOnMap: (d: Driver) => void;
   onDeleteDriver: (id: number) => void;
   onAddDriver: (name: string) => void;
-  onDeleteTrip: (id: string) => void;
-  onShowRoute: (t: Trip) => void;
+  onDeleteTrip: (id: number) => void;
+  onShowRoute: (id:number) => void;
 }

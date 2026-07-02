@@ -1,5 +1,5 @@
 import { useState,useRef,useEffect ,useCallback} from "react";
-import type { Driver ,LogEntry,KPI,LogType,TripStatus,Trip,TripWizard } from "./types";
+import type { Driver ,LogEntry,KPI,LogType,TripStatus,Trip,TripWizard} from "./types";
 import KpiCard from './KpiCard';
 import Terminal from './Terminal';
 import ThroughputChart from './ThroughputChart';
@@ -9,25 +9,7 @@ import DispatchPopup from "./DispatchPopup";
 import SearchPanel from "./SearchPanel";
 import TripWizardOverlay from "./TripWizard";
 import { useNavigate } from "react-router-dom";
-import { api ,socket ,fleetApi} from "./api/client";
-
-
-function useScriptsLoaded(srcs: string[]) {
-  const [loaded, setLoaded] = useState(false);
-  useEffect(() => {
-    let remaining = srcs.filter(src => !document.querySelector(`script[src="${src}"]`));
-    if (remaining.length === 0) { setLoaded(true); return; }
-    let done = 0;
-    remaining.forEach(src => {
-      const s = document.createElement("script");
-      s.src  = src;
-      s.onload = () => { done++; if (done === remaining.length) setLoaded(true); };
-      document.head.appendChild(s);
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  return loaded;
-}
+import { socket ,fleetApi} from "./api/client";
 
 
 function nowHHMMSS() {
@@ -47,24 +29,6 @@ const LOG_MSGS: Array<(d: Driver) => string> = [
   d => `STATUS_SYNC ${d.name} [${d.status}]`,
   d => `ROUTE_CALC ${d.name} ETA=+${Math.floor(Math.random()*20+2)}min`,
 ]
-//     function makeDrivers(): Driver[] {
-//   return DRIVER_NAMES.map((name, i) => {
-//     const angle = Math.random() * Math.PI * 2;
-//     const speed = 0.0002 + Math.random() * 0.0006;
-//     return{
-//     id: i,
-//     name,
-//     lat: 40.7128 + (Math.random() - 0.5) * 0.05,
-//     lng: -74.006 + (Math.random() - 0.5) * 0.09,
-//     vx: Math.cos(angle) * speed,
-//     vy: Math.sin(angle) * speed,
-//     speed: Math.floor(Math.random() * 30 + 25),
-//     status: STATUSES[Math.floor(Math.random() * STATUSES.length)],
-//     order: `ORD-${10000 + i * 317}`,
-//     tripStatus: TRIP_STATUSES[Math.floor(Math.random() * TRIP_STATUSES.length)],
-//     available: Math.random() > 0.4,
-//      } });
-// }
 
 
 let logSeq = 0;
@@ -72,13 +36,15 @@ function FleetCompassApp() {
   const navigate = useNavigate();
   const [User,setUser] = useState(null);
   const [drivers,      setDrivers]      = useState<Driver[]>([]);
-  const [chartData,    setChartData]    = useState<number[]>(() => Array.from({ length: 30 }, () => Math.random() * 60 + 80));
+  const [chartData,    setChartData]    = useState<number[]>(() => Array.from({ length: 100 }, () => 100));
   const [kpi,          setKpi]          = useState<KPI>({ ingestion: 0, latency: 14 });
   const [logs,         setLogs]         = useState<LogEntry[]>([]);
   const tickRef = useRef(0);
   const [trips,        setTrips]        = useState<Trip[]>([]);
   const [showSearch,   setShowSearch]   = useState(false);
   const [dispatchPopup, setDispatchPopup] = useState<{ lat: number; lng: number } | null>(null);
+  const [focusDriver,setFocusDriver] = useState<Driver>();
+  const [routeCoordinates, setRouteCoordinates] = useState<[number, number][]>([]);(null);
   const [wizard, setWizard] = useState<TripWizard>({
     step: "idle", originLat: 0, originLng: 0,
     destLat: null, destLng: null, orderName: "", assignedDriverId: null,
@@ -86,16 +52,37 @@ function FleetCompassApp() {
   const mapRef = useRef<any>(null); // ref to pan map
 
 //REST api
+const [loading, setLoading] = useState(true);
+
 useEffect(() => {
   (async () => {
-    const [driversRes, tripsRes] = await Promise.all([
-      fleetApi.getDrivers(),
-      fleetApi.getTrips(),
-    ]);
-    console.log(driversRes);
-    console.log(tripsRes);
-    setDrivers(driversRes.data);
-    setTrips(tripsRes.data);
+    try {
+      const userRes = await fetch("http://localhost:3001/user/me", {
+        credentials: "include",
+      });
+      if (!userRes.ok) {
+        navigate("/");
+        return;
+      }
+      const user = await userRes.json();
+      setUser(user);
+      const metadata = user?.user_metadata || {};
+
+      const fullName = metadata.fullName || 'No Name Found';
+      pushLog(`Welcome Back ${fullName}`);
+
+      const [driversRes, tripsRes] = await Promise.all([
+        fleetApi.getDrivers(),
+        fleetApi.getTrips(),
+      ]);
+      setDrivers(driversRes.data);
+      setTrips(tripsRes.data);
+      navigate("/App");
+    } catch (err) {
+      navigate("/");
+    } finally {
+      setLoading(false);
+    }
   })();
 }, []);
 
@@ -192,41 +179,46 @@ useEffect(() => {
   useEffect(() => {
     const t = setTimeout(() => {
       pushLog("System boot complete — telemetry stream open", "info");
-      pushLog(`Welcome Back ${User}`);
-      pushLog("Connecting to WebSocket ws://fleet.api:9000/stream...", "info");
+      pushLog("Connecting to WebSocket ...", "info");
       setTimeout(() => pushLog("WebSocket CONNECTED — streaming at 1Hz", "info"), 600);
-      setTimeout(() => pushLog("Map tiles loaded — CARTO Dark v4", "dim"), 1000);
+      setTimeout(() => pushLog("Map tiles loaded — CARTO Dark v4", "dim"));
     }, 200);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  /* ── 1.5 s simulation tick ── */
-  useEffect(() => {
-    
-
-  }, [pushLog]);
 
 
   const handleMapClick = useCallback((lat: number, lng: number) => {
       if (wizard.step === "pick-destination") {
         // wizard step 1 complete — move to assign
         setWizard(w => ({ ...w, step: "assign", destLat: lat, destLng: lng }));
-        pushLog(`[TRIP] Destination set at ${lat.toFixed(5)}, ${lng.toFixed(5)}`, "info");
+        pushLog(`[ORDER] Destination set at ${lat.toFixed(5)}, ${lng.toFixed(5)}`, "info");
         return;
       }
       if (wizard.step === "assign") return; // ignore clicks during assign step
       // normal dispatch popup
       setDispatchPopup({ lat, lng });
       pushLog(`[DISPATCH] New task created at ${lat.toFixed(5)}, ${lng.toFixed(5)}`, "dispatch");
+       pushLog(`[DISPATCH] new warn`, "warn");
+       pushLog(`[DISPATCH] new dim`, "dim");
+       pushLog(`[DISPATCH] new normal`, "normal");
+       pushLog(`[DISPATCH] new info`, "info");
+      
+
+      
     }, [wizard.step, pushLog]);
   
     /* ── driver focus (from search "Find on map" or driver click) ── */
     const handleFocusDriver = useCallback((d: Driver) => {
-      if (mapRef.current) {
-        mapRef.current.setView([d.lat, d.lng], 15, { animate: true });
-      }
+      setFocusDriver(d);
     }, []);
+    useEffect(() => {
+  if (!focusDriver) return;
+  const timer = setTimeout(() => {
+    setFocusDriver(undefined); 
+  }, 50);
+  return () => clearTimeout(timer);
+}, [focusDriver]);
   
     /* ── trip wizard handlers ── */
     const handleStartTrip = () => {
@@ -237,7 +229,7 @@ useEffect(() => {
         originLat: dispatchPopup.lat, originLng: dispatchPopup.lng,
         destLat: null, destLng: null, orderName: "", assignedDriverId: null,
       });
-      pushLog("[TRIP] Wizard started — click destination on map", "info");
+      pushLog("[TRIP] Wizard started — click destination on map", "dispatch");
     };
   
     const handleConfirmTrip = () => {
@@ -254,7 +246,7 @@ useEffect(() => {
         started_at: new Date(),
       };
       socket.emit("startTrip", payload);
-      pushLog(`[TRIP] ${driver.name} assigned → ${wizard.orderName} (${wizard.originLat.toFixed(4)},${wizard.originLng.toFixed(4)}) → (${wizard.destLat.toFixed(4)},${wizard.destLng!.toFixed(4)})`, "dispatch");
+      pushLog(`[Order] ${driver.name} assigned → ${wizard.orderName} (${wizard.originLat.toFixed(4)},${wizard.originLng.toFixed(4)}) → (${wizard.destLat.toFixed(4)},${wizard.destLng!.toFixed(4)})`, "dispatch");
   
       setWizard({ step: "idle", originLat: 0, originLng: 0, destLat: null, destLng: null, orderName: "", assignedDriverId: null });
     };
@@ -263,35 +255,77 @@ useEffect(() => {
       setWizard({ step: "idle", originLat: 0, originLng: 0, destLat: null, destLng: null, orderName: "", assignedDriverId: null });
       pushLog("[TRIP] Wizard cancelled", "warn");
     };
-  
 
-const DeleteDriver = () =>{}
+    const showRoute = async (tripId: number) => {
+   try {
+    const data = await getRoute(tripId);
+    console.log(data);
+    setRouteCoordinates(data);
+  
+  } catch(err){
+    console.error(err);
+    pushLog("Couldn't load route", "warn");
+  }
+};
+
+const DeleteDriver = (driverId:number) =>{
+try {
+    fleetApi.deleteDriver(driverId);
+    setDrivers(prev => prev.filter(d => d.id !== driverId));
+    pushLog("Driver deleted", "normal");
+  } catch (err) {
+    pushLog("Couldn't delete driver", "warn");
+  }
+}
 const AddDriver = (name: string) =>{
   fleetApi.createDriver(name);
+  pushLog('[Drivers] Created new Driver',"info");
 }
-const DeleteTrip = () =>{}
-const ShowRoute = () =>{}
+const DeleteTrip = (tripId:number) =>{
+try {
+    fleetApi.deleteDriver(tripId);
+    setTrips(prev => prev.filter(d => d.id !== tripId));
 
+    pushLog("Order deleted", "normal");
+  } catch (err) {
+    pushLog("Couldn't delete Order", "warn");
+  }
+}
+const getRoute = async(tripId: number) =>{
+const res = await fleetApi.getRoute(tripId);
+return res.data;
+}
 
-
-useEffect(() => {
-  fetch("http://localhost:3001/user/me", {
-    credentials: "include",
-  })
-    .then(res => {
-      if (!res.ok) throw new Error();
-      return res.json();
-    })
-    .then(user => {
-      setUser(user);
-      navigate("/App");
-    })
-    .catch(() => {
-      navigate("/");
-    });
-}, []);
+const handleLogout= async () => {
+ try{
+await fleetApi.logout();
+setUser(null);
+navigate("/");
+ }catch(err){
+  pushLog("Failed to Logout","warn")
+ }
+}
 
   const latencyColor = kpi.latency > 30 ? "#ef4444" : kpi.latency > 20 ? "#f59e0b" : "#fbbf24";
+
+  if (loading){
+    return (
+      <div style={{
+        position: "fixed", inset: 0, background: "#020617",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        flexDirection: "column", gap: 16,
+      }}>
+        <svg width="36" height="36" viewBox="0 0 28 28" fill="none">
+          <rect width="28" height="28" rx="7" fill="rgba(99,102,241,0.15)" stroke="rgba(99,102,241,0.4)" strokeWidth="1"/>
+          <path d="M14 5 L20 10 L20 18 L14 23 L8 18 L8 10 Z" stroke="#818cf8" strokeWidth="1.5" fill="none"/>
+          <circle cx="14" cy="14" r="3" fill="#6366f1"/>
+        </svg>
+        <div style={{ fontFamily: "'Courier New', monospace", fontSize: 12, color: "#64748b", letterSpacing: "0.1em" }}>
+          LOADING TELEMETRY ENGINE…
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -345,7 +379,7 @@ useEffect(() => {
         </div>
       </div>
 
-      <TopBar onSearch={() => setShowSearch(true)} onLogout={() => pushLog("[AUTH] User logged out", "warn")} />
+      <TopBar onSearch={() => setShowSearch(true)} onLogout={() => handleLogout()} />
 
 
       {/* ── Map ── */}
@@ -355,7 +389,10 @@ useEffect(() => {
        onAddLog={pushLog}
        wizard={wizard}
        onMapClick={handleMapClick}
-       onFocusDriver={handleFocusDriver} />
+       onFocusDriver={handleFocusDriver}
+       routeCoordinates={routeCoordinates}
+       setRouteCoordinates={setRouteCoordinates}
+       flyToDriver={focusDriver} />
 
        {/* ── Dispatch popup (non-wizard) ── */}
       {dispatchPopup && wizard.step === "idle" && (
@@ -405,7 +442,7 @@ useEffect(() => {
           onDeleteDriver={DeleteDriver}
           onAddDriver= {AddDriver}
           onDeleteTrip={DeleteTrip}
-          onShowRoute ={ShowRoute}
+          onShowRoute ={showRoute}
         />
       )}
 

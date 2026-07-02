@@ -65,7 +65,7 @@ function SearchPanel({ drivers, trips, onClose, onFindOnMap, onDeleteDriver, onA
   };
   const handleDeleteTrip = (id: number) => {
     if (confirmDel?.kind === "trip" && confirmDel.id === id) {
-      onDeleteTrip(toString());
+      onDeleteTrip(id);
       setConfirmDel(null);
     } else {
       setConfirmDel({ kind: "trip", id });
@@ -329,7 +329,7 @@ function SearchPanel({ drivers, trips, onClose, onFindOnMap, onDeleteDriver, onA
               {/* show route */}
               <button
                 title="Show route on map"
-                onClick={() => { onShowRoute(t); onClose(); }}
+                onClick={() => { onShowRoute(t.id); onClose(); }}
                 style={{ ...ICON_BTN, color: "#60a5fa" }}
                 onMouseEnter={e => (e.currentTarget.style.background = "rgba(96,165,250,0.12)")}
                 onMouseLeave={e => (e.currentTarget.style.background = "none")}

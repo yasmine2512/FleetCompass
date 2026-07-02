@@ -215,6 +215,19 @@ code {
     border: 1.5px solid #22c55e;
     animation: fc-pulse-ring 1.6s ease-out infinite;
   }
+
+  .maplibregl-popup {
+  z-index: 9999;
+}
+
+.maplibregl-popup-content {
+  background: #0f172a;
+  color: white;
+  border-radius: 10px;
+  padding: 10px;
+  font-family: monospace;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
   @keyframes fc-pulse-ring {
     0%   { transform: scale(0.5); opacity: 1; }
     100% { transform: scale(2.2); opacity: 0; }

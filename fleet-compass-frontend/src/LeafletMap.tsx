@@ -1,5 +1,5 @@
 import { useEffect,useRef } from 'react';
-import type {Driver ,LogType,Status,TripWizard} from './types'
+import type {Driver ,LogType,Status,TripWizard,MapProps} from './types'
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -47,21 +47,8 @@ const STATUS_COLORS: Record<Status, string> = {
   "Offline": "#f59e0b",
 };
 
-interface MapProps {
-  drivers: Driver[];
-  onAddLog: (msg: string, type: LogType) => void;
-  wizard: TripWizard;
-  onMapClick: (lat: number, lng: number) => void;
-  onFocusDriver: (d: Driver) => void;
-  setDispatch: React.Dispatch<
-    React.SetStateAction<{
-      lat: number;
-      lng: number;
-    } | null>
-  >;
-}
 
-function LeafletMap({drivers, onAddLog , wizard, onMapClick, onFocusDriver,setDispatch}: MapProps){
+function LeafletMap({drivers, onAddLog , wizard, onMapClick, onFocusDriver,setDispatch, routeCoordinates,setRouteCoordinates,flyToDriver}: MapProps){
 
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef      = useRef<any>(null);
@@ -69,6 +56,18 @@ function LeafletMap({drivers, onAddLog , wizard, onMapClick, onFocusDriver,setDi
   const markersRef = useRef<Map<number, L.Marker>>(new Map());
   const driverDataRef = useRef<Map<number, Driver>>(new Map());
   const destMarkerRef = useRef<any>(null);
+  const startMarkerRef = useRef<L.Marker | null>(null);
+  const endMarkerRef = useRef<L.Marker | null>(null);
+
+
+ 
+useEffect(()=>{
+const map = mapRef.current;
+  if (!map || !flyToDriver) return;
+  if (mapRef.current) {
+        mapRef.current.setView([flyToDriver.lat, flyToDriver.lng], 15, { animate: true });
+      }
+},[flyToDriver]);
 
   /* ── init map once ── */
   useEffect(() => {
@@ -108,12 +107,12 @@ map.on("click", (e: L.LeafletMouseEvent) => {
     lng,
   });
 
-  onAddLog(
-    `[DISPATCH] New task created at ${lat.toFixed(
-      5
-    )}, ${lng.toFixed(5)}`,
-    "dispatch"
-  );
+  // onAddLog(
+  //   `[DISPATCH] New task created at ${lat.toFixed(
+  //     5
+  //   )}, ${lng.toFixed(5)}`,
+  //   "dispatch"
+  // );
 });
     mapRef.current = map;
     return () => { map.remove(); mapRef.current = null; };
@@ -149,6 +148,48 @@ map.on("click", (e: L.LeafletMouseEvent) => {
         .openPopup();
     }
   }, [wizard.destLat, wizard.destLng, wizard.step, L]);
+
+
+  /* ── Draw Route ── */
+const routeRef = useRef<L.Polyline | null>(null);
+
+useEffect(() => {
+    const map = mapRef.current;
+    if (!map ) return;
+    if (routeRef.current) {
+    map.removeLayer(routeRef.current);
+    routeRef.current = null;
+  }
+  if (startMarkerRef.current) {
+    map.removeLayer(startMarkerRef.current);
+    startMarkerRef.current = null;
+  }
+  if (endMarkerRef.current) {
+    map.removeLayer(endMarkerRef.current);
+    endMarkerRef.current = null;
+  }
+  if (!routeCoordinates || routeCoordinates.length === 0) return;
+    routeRef.current = L.polyline( routeCoordinates as [number, number][], {
+        color: "#3b82f6",
+        weight: 3,
+        opacity: 0.6,
+    }).addTo(map);
+
+  const start = routeCoordinates[0];
+  startMarkerRef.current = L.marker(start)
+    .addTo(map)
+    .bindPopup("Start");
+
+  // 5. Create and save End Marker reference
+  const end = routeCoordinates[routeCoordinates.length - 1];
+  endMarkerRef.current = L.marker(end)
+    .addTo(map)
+    .bindPopup("End");
+
+    map.fitBounds(routeRef.current.getBounds());
+}, [routeCoordinates]);
+
+
 
   /* ── sync markers whenever drivers state changes ── */
   useEffect(() => {
@@ -228,7 +269,57 @@ map.on("click", (e: L.LeafletMouseEvent) => {
       style={{ position: "fixed", left: 420, top: 0, right: 0, bottom: 0, zIndex: 1 ,
       cursor: wizard.step === "pick-destination" ? "crosshair" : "grab",
       }}
-    />
+    >
+  
+
+      {/* ── Floating Clear Button ── */}
+      {routeCoordinates && routeCoordinates.length > 0 && (
+        <button
+      onClick={() => setRouteCoordinates([])}
+      title="Close Route History"
+      style={{
+        position: 'absolute',
+        top: '20px',
+        left: '20px',
+        zIndex: 1000, // Floats safely on top of Leaflet layers
+        background: 'transparent',
+        border: 'none',
+        cursor: 'pointer',
+        padding: 0,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        outline: 'none',
+        transition: 'transform 0.2s ease',
+      }}
+      onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.1)')}
+      onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
+    >
+      <svg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+        {/* Outer ambient radar ring */}
+        <circle cx="20" cy="20" r="16" fill="#ef4444" fillOpacity="0.1" />
+        
+        {/* Mid-tier steady ring */}
+        <circle cx="20" cy="20" r="11" fill="#ef4444" fillOpacity="0.2" />
+        
+        {/* Inner core button background */}
+        {/* <circle cx="20" cy="20" r="6" fill="#f87171" /> */}
+        
+        {/* Dynamic Pulsing Action Ring */}
+        <circle cx="20" cy="20" r="6" fill="#ef4444" opacity="0.6">
+          <animate attributeName="r" values="6;16;6" dur="2s" repeatCount="indefinite" />
+          <animate attributeName="opacity" values="0.6;0;0.6" dur="2s" repeatCount="indefinite" />
+        </circle>
+        
+        {/* Diagonal X Reticle Line 1 */}
+        <line x1="12" y1="12" x2="28" y2="28" stroke="#f87171" strokeWidth="2" strokeLinecap="round" />
+        
+        {/* Diagonal X Reticle Line 2 */}
+        <line x1="28" y1="12" x2="12" y2="28" stroke="#f87171" strokeWidth="2" strokeLinecap="round" />
+      </svg>
+    </button>
+      )}
+</div>
   );
 }
 export default LeafletMap

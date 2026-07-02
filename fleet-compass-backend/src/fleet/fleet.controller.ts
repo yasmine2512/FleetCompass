@@ -33,29 +33,18 @@ export class FleetController {
         return this.fleetService.createDriver(name,req.user!.id);
     }
 
-    @Get('drivers/:id')
-    findOneDriver(@Param('id') id:string,@Req() req: Request){
-        return this.fleetService.findOneDriver(+id,req.user!.id);
-    }
-
-    @Get('active')
-    getActiveDrivers(@Req() req: Request){
-        return this.fleetService.findActiveFleet(req.user!.id);
-    }
-
     @Get(':id')
     findOne(@Param('id') id: string,@Req() req: Request) {
         return this.fleetService.findOne(+id,req.user!.id);
     }
 
-    @Patch(':id/status')
-    update( @Param('id') id: string,@Body() dto: UpdateTripStatusDto,) {
-        return this.fleetService.update(+id,dto);
-    }
-
     @Delete(':id')
-    remove(@Param('id') id: string) {
-        return this.fleetService.remove(+id);
+    remove(@Param('id') id: string,@Req() req: Request) {
+        return this.fleetService.remove(+id,req.user!.id);
+    }
+    @Delete('drivers/:id')
+    removeDriver(@Param('id') id: string,@Req() req: Request) {
+        return this.fleetService.removeDriver(+id,req.user!.id);
     }
 
 }

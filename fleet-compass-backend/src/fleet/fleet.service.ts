@@ -1,4 +1,4 @@
-import { Injectable ,UnauthorizedException  } from '@nestjs/common';
+import { Injectable ,UnauthorizedException ,NotFoundException } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { Socket } from 'socket.io';
@@ -120,41 +120,6 @@ export class FleetService {
     return result.rows;
   }
 
-  async findOne(id: number,user_id: string) {
-
-    const tripResult = await this.databaseService.pool.query(
-    `SELECT 
-      id,
-      driver_id,
-      order_name,
-      status,
-      started_at,
-      ST_X(start_position::geometry) as start_longitude,
-      ST_Y(start_position::geometry) as start_latitude,
-      ST_X(destination_position::geometry) as destination_longitude,
-      ST_Y(destination_position::geometry) as destination_latitude
-    FROM trips
-    WHERE id = $1 AND user_id = $2`,
-    [id,user_id]
-  );
-
-  const locationsResult = await this.databaseService.pool.query(
-    `SELECT 
-      ST_Y(position::geometry) as latitude,
-      ST_X(position::geometry) as longitude,
-      speed,
-      created_at
-    FROM driver_locations
-    WHERE trip_id = $1 AND user_id = $2
-    ORDER BY created_at ASC`,
-    [id,user_id]
-  );
-
-  return {
-    trip: tripResult.rows[0] || null,
-    route: locationsResult.rows
-  };
-  }
 
   async update(id: number,status: UpdateTripStatusDto) {
     await this.databaseService.pool.query(
@@ -171,19 +136,46 @@ export class FleetService {
     };
   }
 
-  async remove(id: number) {
-    await this.databaseService.pool.query(
-      `
-      DELETE FROM trips
-      WHERE id = $1
-      `,
-      [id],
+  async remove(id: number,userId:string) {
+    const result = await this.databaseService.pool.query(
+    `
+    DELETE FROM trips
+    WHERE id = $1
+      AND user_id = $2
+    RETURNING *;
+    `,
+    [id, userId],
+  );
+  if (result.rowCount === 0) {
+    throw new NotFoundException(
+      "Trip not found or you don't have permission to delete it",
     );
-    return {
-      message: 'Trip deleted successfully',
-    };
+  }
+  return {
+    message: "Trip deleted successfully",
+  };
+  }
+  async removeDriver(id: number,userId:string) {
+    const result = await this.databaseService.pool.query(
+    `
+    DELETE FROM drivers
+    WHERE id = $1
+      AND user_id = $2
+    RETURNING *;
+    `,
+    [id, userId],
+  );
+
+  if (result.rowCount === 0) {
+    throw new NotFoundException(
+      "Driver not found or you don't have permission to delete it",
+    );
   }
 
+  return {
+    message: "Driver deleted successfully",
+  };
+  }
 
   async createDriver(name : string ,user_id :string ){
      const client = await this.databaseService.pool.connect();
@@ -228,94 +220,81 @@ export class FleetService {
   }
   }
 
-
   async findAllDrivers(user_id : string){
    const result = await this.databaseService.pool.query(
-      ` SELECT 
-      d.id,
-      d.name,
-      d.status,
-      ST_Y(dl.position::geometry) AS lat,
-      ST_X(dl.position::geometry) AS lng,
-      dl.speed,
+      ` SELECT
+    d.id,
+    d.name,
+    d.status,
 
-      CASE 
-        WHEN d.status = 'EN ROUTE' THEN t.trip_id 
-        ELSE NULL 
-      END AS trip_id,
+    ST_Y(dl.position::geometry) AS lat,
+    ST_X(dl.position::geometry) AS lng,
+    COALESCE(dl.speed, 0) AS speed,
 
-      CASE 
-        WHEN d.status = 'EN ROUTE' THEN t.order_name 
-        ELSE NULL 
-      END AS order_name,
-
-      CASE 
-        WHEN d.status = 'EN ROUTE' THEN t.trip_status 
-        ELSE NULL 
-      END AS trip_status
+    t.trip_id,
+    t.order_name,
+    t.trip_status
 
     FROM drivers d
 
     LEFT JOIN LATERAL (
-      SELECT position, speed
-      FROM driver_locations dl
-      WHERE dl.driver_id = d.id
-      ORDER BY dl.created_at DESC
-      LIMIT 1
-    ) dl ON true
+        SELECT
+            position,
+            speed
+        FROM driver_locations
+        WHERE driver_id = d.id
+        ORDER BY created_at DESC
+        LIMIT 1
+    ) dl ON TRUE
 
     LEFT JOIN LATERAL (
-      SELECT 
-        id AS trip_id,
-        order_name,
-        status AS trip_status
-      FROM trips
-      WHERE driver_id = d.id
-        AND status = 'ONGOING'
-      ORDER BY started_at DESC
-      LIMIT 1
-    ) t ON d.status = 'EN_ROUTE'
-
-    WHERE d.user_id = $1`,
+        SELECT
+            id AS trip_id,
+            order_name,
+            status AS trip_status
+        FROM trips
+        WHERE driver_id = d.id
+          AND status = 'Ongoing'
+        ORDER BY started_at DESC
+        LIMIT 1
+    ) t
+    ON d.status = 'En Route'
+    WHERE d.user_id = $1
+    ORDER BY d.id;`,
       [user_id]
     )
     return result.rows;
   }
 
+async findOne(tripId: number, userId: string) {
+  const result = await this.databaseService.pool.query(
+    `SELECT
+    json_agg(
+        json_build_array(
+            ST_Y(dp.geom),
+            ST_X(dp.geom)
+        )
+        ORDER BY dp.path
+    ) AS coordinates
+FROM (
+    SELECT
+        (dump).path,
+        (dump).geom
+    FROM trip_routes tr
+    CROSS JOIN LATERAL ST_DumpPoints(tr.route) AS dump
+    INNER JOIN trips t
+        ON tr.trip_id = t.id
+    WHERE tr.trip_id = $1
+      AND t.user_id = $2
+) dp;`,[tripId, userId],
+  );
 
-  async findOneDriver(id: number,user_id :string){
-   const result = await this.databaseService.pool.query(
-      `SELECT 
-        ST_X(dl.position::geometry) as longitude,
-        ST_Y(dl.position::geometry) as latitude,
-        dl.speed,
-        dl.created_at
-     FROM driver_locations dl
-     INNER JOIN trips t ON dl.trip_id = t.id
-     WHERE dl.driver_id = $1 
-       AND t.status = 'Ongoing' AND t.user_id = $2
-     ORDER BY dl.created_at DESC
-     LIMIT 1`,
-    [id,user_id]
-    )
-    return result.rows;
-  }
-
-  async findActiveFleet(user_id :string) {
-  const result = await this.databaseService.pool.query(`
-    SELECT DISTINCT ON (dl.driver_id)
-      dl.driver_id,
-      dl.trip_id,
-      t.order_name,
-      ST_X(dl.position::geometry) as longitude,
-      ST_Y(dl.position::geometry) as latitude,
-      dl.speed,
-      dl.created_at
-    FROM driver_locations dl
-    JOIN trips t ON dl.trip_id = t.id
-    WHERE t.status = 'Ongoing' AND t.user_id = $1
-    ORDER BY dl.driver_id, dl.created_at DESC
-  `,[user_id]);
-  return result.rows;
+const coordinates = result.rows[0].coordinates;
+if (!coordinates) {
+  throw new NotFoundException('Trip not found');
 }
+
+return coordinates;
+}
+
 }
