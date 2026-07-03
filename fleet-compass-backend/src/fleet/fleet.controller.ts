@@ -23,7 +23,7 @@ export class FleetController {
     findAll(@Req() req: Request,@Query('page') page?: string,
   @Query('limit') limit?: string,@Query('status') status?: string) {
         return this.fleetService.findAll(req.user!.id,page ? 
-        parseInt(page, 10) : 1,limit ? parseInt(limit, 10) : 10,status);
+        parseInt(page, 10) : 1,limit ? parseInt(limit, 10) : 7,status);
     }
 
     @Get('drivers')

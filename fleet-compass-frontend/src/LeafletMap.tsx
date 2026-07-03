@@ -250,7 +250,7 @@ function LeafletMap({ drivers, onAddLog, wizard, onMapClick, onFocusDriver, setD
           onClick={() => setRouteCoordinates([])}
           title="Close Route History"
           style={{
-            position: 'absolute', top: '20px', left: '20px', zIndex: 1000,
+            position: 'absolute', top: '10px', left: '30px', zIndex: 1000,
             background: 'transparent', border: 'none', cursor: 'pointer', padding: 0,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             outline: 'none', transition: 'transform 0.2s ease',

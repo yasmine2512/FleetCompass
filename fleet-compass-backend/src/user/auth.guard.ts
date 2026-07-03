@@ -27,18 +27,13 @@ export class AuthGuard implements CanActivate {
     return true;
   }
     if (context.getType() === 'ws') {
-        console.log("WS guard executed");
       const client = context.switchToWs().getClient();
-        console.log("Handshake headers:", client.handshake.headers);
       const cookies = cookie.parse(
         client.handshake.headers.cookie || ''
       );
-      console.log("Cookies:", cookies);
       const token = cookies.access_token;
-
       if (!token)
         throw new UnauthorizedException();
-      console.log("Token:", token);
       const { data, error } =
         await this.databaseService.supabase.auth.getUser(token);
 

@@ -29,15 +29,27 @@ export class UserController {
   logout(@Res({ passthrough: true }) res:Response){
     return this.userService.logout(res);
   }
-  @UseGuards(AuthGuard)
+ 
   @Put('update-profile')
-  updateUser(@Req() req: Request,updateDto : UpdateUserDto) {
+  @UseGuards(AuthGuard)
+  updateUser(@Req() req: Request,@Body() updateDto : UpdateUserDto) {
     return this.userService.updateMetadata(req.user!.id,updateDto)
   }
 
   @Get('me')
   @UseGuards(AuthGuard)
-  getProfile(@Req() req) {
-  return req.user;
-}
+  getProfile(@Req() req: Request) {return req.user;}
+
+ @Delete()
+ @UseGuards(AuthGuard)
+ async deleteUser(@Req() req: Request,@Res({ passthrough: true }) res: Response){
+  await this.userService.deleteProfile(req.user!.id);
+  res.clearCookie('sb-access-token', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/'
+    });
+    return { success: true };
+ }
 }

@@ -24,6 +24,7 @@ export class FleetService {
   }
 
   async getRoute(coordinates: number[][]) {
+    try {
     const response = await axios.post(
       'https://api.openrouteservice.org/v2/directions/driving-car/geojson',
       { coordinates },
@@ -33,10 +34,22 @@ export class FleetService {
           'Content-Type': 'application/json',
         },
       },
-    );
-
+    ); 
     return response.data.features[0].geometry.coordinates;
+    }catch (error: any) {
+  if (error.response) {
+   if (error.response) {
+      const orsStatus = error.response.status;
+      const orsData = error.response.data;
+      
+      if (orsStatus === 404 || (orsData.error && orsData.error.code === 2010)) {
+        throw new Error('INVALID_ROUTING_POINTS');
+      }
+    }
+    throw new Error('ROUTING_SERVICE_FAILED');
   }
+}
+}
 
   async startTrip(data: CreateFleetDto, client: Socket,id: string) {
     try {
@@ -48,42 +61,17 @@ export class FleetService {
     if (driverCheck.rowCount === 0) {
       throw new UnauthorizedException("Driver does not belong to this user");
     }
-      console.log("started");
       const coordinates = [
         [data.startLongitude, data.startLatitude],
         [data.destLongitude, data.destLatitude],
       ];
 
-      const startedAt = data.started_at || new Date()
-      const tripResult = await this.databaseService.pool.query(
-        `INSERT INTO trips
-        (driver_id,order_name,start_position, destination_position,status,started_at,user_id)
-        VALUES ($1,$2,ST_SetSRID(ST_MakePoint($3, $4), 4326)::geography,
-        ST_SetSRID(ST_MakePoint($5, $6), 4326)::geography,$7,$8,$9)
-        RETURNING id`,
-        [data.driverId,data.orderName,data.startLongitude,
-          data.startLatitude,data.destLongitude,data.destLatitude,
-          'Pending',startedAt,id,
-        ],
-      );
-      const tripId = tripResult.rows[0].id;
-      client.join(`trip:${tripId}`);
-
-      await this.databaseService.pool.query(
-      `UPDATE drivers SET status = 'En Route' 
-      WHERE id = $1 AND user_id = $2`,
-      [data.driverId,id]
-    );
-
       await this.routeQueue.add('generateRoute', {
-        tripId,
+        id: id,
         driverId: data.driverId,
         orderName: data.orderName,
         clientId: client.id,
-        coordinates: [
-          [data.startLongitude, data.startLatitude],
-          [data.destLongitude, data.destLatitude],
-        ]
+        coordinates: coordinates,
       }, {
         removeOnComplete: true,
         removeOnFail: true,
@@ -93,13 +81,10 @@ export class FleetService {
           delay: 5000, // Wait 5s, then 10s, then 20s
   }
       });
-
-      client.emit('tripRequested', { tripId, status: 'Pending' });
-      console.log("trip Requested");
     } catch (error) {
       console.error(error);
 
-      client.emit('error', {
+      this.fleetEventsService.emitToRoom(`user:${id}`,'error', {
         message: 'Failed to start trip',
       });
     }

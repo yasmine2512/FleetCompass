@@ -31,8 +31,9 @@ export class FleetGateway implements OnGatewayConnection{
   @UseGuards(AuthGuard)
   @SubscribeMessage('startTrip')
   async create(@MessageBody() data: CreateFleetDto, @ConnectedSocket() client: Socket) {
-    console.log("called");
-    return this.fleetService.startTrip(data,client,client.data.user.id);
+    const userId = client.data.user.id;
+    await client.join(`user:${userId}`);
+    return this.fleetService.startTrip(data,client,userId);
   }
 
  

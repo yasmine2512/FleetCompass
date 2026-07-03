@@ -1,5 +1,5 @@
 import { useState,useRef,useEffect ,useCallback} from "react";
-import type { Driver ,LogEntry,KPI,LogType,TripStatus,Trip,TripWizard} from "./types";
+import type { Driver ,LogEntry,KPI,LogType,UserMetadata,Trip,TripWizard,SettingsForm} from "./types";
 import KpiCard from './KpiCard';
 import Terminal from './Terminal';
 import Settings from "./Settings";
@@ -21,8 +21,6 @@ const DRIVER_NAMES = [
   "D-FOXTROT","D-GOLF","D-HOTEL","D-INDIA","D-JULIET",
 ];
 
-const TRIP_STATUSES: TripStatus[] = ["Pending", "Ongoing", "Completed"];
-// when creating a driver
 const LOG_MSGS: Array<(d: Driver) => string> = [
   d => `GPS_PING ${d.name} lat=${d.lat?.toFixed(5)} lng=${d.lng?.toFixed(5)}`,
   d => `SPEED_UPDATE ${d.name} → ${d.speed}mph`,
@@ -35,7 +33,7 @@ const LOG_MSGS: Array<(d: Driver) => string> = [
 let logSeq = 0;
 function FleetCompassApp() {
   const navigate = useNavigate();
-  const [User,setUser] = useState(null);
+  const [user,setUser] = useState<UserMetadata>({});
   const [drivers,      setDrivers]      = useState<Driver[]>([]);
   const [chartData,    setChartData]    = useState<number[]>(() => Array.from({ length: 100 }, () => 100));
   const [kpi,          setKpi]          = useState<KPI>({ ingestion: 0, latency: 14 });
@@ -67,15 +65,14 @@ useEffect(() => {
         return;
       }
       const user = await userRes.json();
-      setUser(user);
+      setUser(user.user_metadata);
       const metadata = user?.user_metadata || {};
-
       const fullName = metadata.fullName || 'No Name Found';
-      pushLog(`Welcome Back ${fullName}`);
+      console.log(fullName);
 
       const [driversRes, tripsRes] = await Promise.all([
         fleetApi.getDrivers(),
-        fleetApi.getTrips(1,10,""),
+        fleetApi.getTrips(1,8,""),
       ]);
       setDrivers(driversRes.data);
       setTrips(tripsRes.data.data);
@@ -216,15 +213,17 @@ useEffect(() => {
 
   /* ── initial boot logs ── */
   useEffect(() => {
+    if (!user) return;
     const t = setTimeout(() => {
       pushLog("System boot complete — telemetry stream open", "info");
       pushLog("Connecting to WebSocket ...", "info");
+      pushLog(`Welcome Back ${user.fullName}`);
       setTimeout(() => pushLog("WebSocket CONNECTED — streaming at 1Hz", "info"), 600);
       setTimeout(() => pushLog("Map tiles loaded — CARTO Dark v4", "dim"));
     }, 200);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [user]);
 
 
   const handleMapClick = useCallback((lat: number, lng: number) => {
@@ -336,25 +335,35 @@ return res.data;
 const handleLogout= async () => {
  try{
 await fleetApi.logout();
-setUser(null);
+setUser({});
 navigate("/");
  }catch(err){
   pushLog("Failed to Logout","warn")
  }
 }
 const [showSettings, setShowSettings] = useState(false);
-const [settingsForm, setSettingsForm] = useState({
-  fullName: "John Doe", 
-  email: "operator@fleetcompass.com", // Read-only view
-  fleet: "North Atlantic Logistics"
+const [settingsForm, setSettingsForm] = useState<SettingsForm>({
+  fullName:"", 
+  email:"", // Read-only view
+  fleet:""
 });
+
+useEffect(() => {
+  if (user) {
+    setSettingsForm({
+      fullName: user.fullName || "",
+      email: user.email || "", 
+      fleet: user.fleet || ""
+    });
+  }
+}, [user]);
 
 const handleSaveSettings = async() => {
   console.log("Saving profile changes...", settingsForm);
   try {
     const response = await fleetApi.updateProfile(
-    settingsForm.fullName,
-    settingsForm.fleet
+    settingsForm.fullName!,
+    settingsForm.fleet!
   );
     console.log("Profile updated:", response.data);
     alert("Configuration saved successfully!");
@@ -374,10 +383,20 @@ console.log(currentFleet,currentFullName)
 };
 
 // Mock account deletion handler
-const handleDeleteAccount = () => {
+const handleDeleteAccount = async() => {
   if (confirm("Are you absolutely sure you want to delete your account? This action cannot be undone.")) {
+    try {
     console.log("Deleting account permanently...");
-    // Call your backend account deletion logic here
+  const response = await fleetApi.deleteAccount();
+  if (response.data?.success || response.status === 200 || response.status === 204) {
+        alert("Your profile network context has been successfully terminated.");
+        navigate("/");
+      }
+    }catch(error : any){
+      console.error("Account erasure failed:", error);
+      const serverMessage = error.response?.data?.message || 'Failed to destroy profile context.';
+      alert(serverMessage);
+    }
   }
 };
 

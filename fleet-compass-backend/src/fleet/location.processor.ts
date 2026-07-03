@@ -1,45 +1,54 @@
-import { Processor, WorkerHost } from '@nestjs/bullmq';
-import { Job } from 'bullmq';
+import { Processor, WorkerHost ,InjectQueue} from '@nestjs/bullmq';
+import { Job ,Queue} from 'bullmq';
 import {Injectable, OnModuleDestroy,OnModuleInit } from '@nestjs/common';
 import pg from 'pg';
 import { FleetEventsService } from './fleet-events.service';
 import { DatabaseService } from 'src/database/database.service';
-@Processor('locationIngestion')
+@Processor('locationIngestion',{concurrency: 50})
 @Injectable()
 export class locationIngestion extends WorkerHost{
 
 
   constructor(
     private readonly fleetEventsService: FleetEventsService,
-    private readonly databaseService:DatabaseService
+    private readonly databaseService:DatabaseService,
+    @InjectQueue('locationIngestion') private readonly locationQueue: Queue
   ) {
     super();
   }
 
-
   async process(job: Job<any>): Promise<any> {
-    console.log('PROCESSOR CALLED');
+    console.log('NEW TRIP STARTED');
     if (job.name !== 'simulateTrip') return;
 
-    const {tripId,driverId,route} = job.data;
-    console.log('tripId:', tripId);
-    console.log('driverId:', driverId);
+    const {tripId,driverId,route, userId, pointIndex = 0, previousPoint = null, previousTimestamp = Date.now()} = job.data;
+    if (!route || pointIndex >= route.length) return;
+    console.log(`Processing tripId: ${tripId}, pointIndex: ${pointIndex}`);
     console.log('route length:', route?.length);
-
-    let previousPoint: number[] | null = null;
-    let previousTimestamp = Date.now();
-    let pointIndex = 0;
+    const point = route[pointIndex];
+    const longitude = point[0];
+    const latitude = point[1];
+    let speed = 0;
     try {
-    for (const point of route) {
-      try{
-        console.log('Processing point:', point);
-      const longitude = point[0];
-      const latitude = point[1];
-      let speed = 0;
+      if (pointIndex === 0) {
+        console.log(`[Lifecycle] Activating Trip ${tripId} state to Ongoing...`);
+        await this.databaseService.pool.query(
+          `UPDATE drivers SET status = 'En Route' WHERE id = $1 AND user_id = $2`,
+          [driverId, userId]
+        );
+        await this.databaseService.pool.query(
+          `UPDATE trips SET status = 'Ongoing' WHERE id = $1`,
+          [tripId]
+        );
+        this.fleetEventsService.emitToRoom(`user:${userId}`, 'tripStarted', {
+          tripId,
+          driverId,
+          status: 'Ongoing',
+        });
+      }
 
       if (previousPoint) {
         const now = Date.now();
-
         const timeElapsed = (now - previousTimestamp) / 1000;
         const distanceResult = await this.databaseService.pool.query(
             `SELECT ST_Distance(
@@ -51,7 +60,6 @@ export class locationIngestion extends WorkerHost{
 
         const distance = parseFloat(distanceResult.rows[0].distance);
         speed = (distance / timeElapsed) * 3.6;
-        previousTimestamp = now;
       }
        if (pointIndex % 5 === 0 || pointIndex === route.length - 1) {
       await this.databaseService.pool.query(
@@ -70,7 +78,7 @@ export class locationIngestion extends WorkerHost{
         [driverId, tripId, longitude, latitude, speed],
       );
     }
-      this.fleetEventsService.emit('locationUpdate', {
+      this.fleetEventsService.emitToRoom(`user:${userId}`,'locationUpdate', {
         tripId,
         driverId,
         latitude,
@@ -78,52 +86,42 @@ export class locationIngestion extends WorkerHost{
         speed,
       });
 
-      previousPoint = point;
-      } catch (innerError) {
-    console.error('Failed to log intermediate route point, skipping to next tick:', innerError);
-  }
-      await new Promise(resolve => setTimeout(resolve, 1000));
-    }
+if (pointIndex < route.length - 1) {
+        await this.locationQueue.add('simulateTrip', {
+          tripId,
+          driverId,
+          route,
+          userId,
+          pointIndex: pointIndex + 1,
+          previousPoint: point,
+          previousTimestamp: Date.now()
+        }, {
+          delay: 1000, 
+          removeOnComplete: true,
+          removeOnFail: true,
+        });
 
-      console.log('Trip finished');
+      } else {
+        console.log(`Trip ${tripId} has reached its final destination!`);
+        const endedAt = new Date();
+        
+        await this.databaseService.pool.query(
+          `UPDATE trips SET status = 'Completed', ended_at = $2, duration_seconds = EXTRACT(EPOCH FROM ($2 - started_at)) WHERE id = $1`,
+          [tripId, endedAt]
+        );
+        await this.databaseService.pool.query(`UPDATE drivers SET status='Idle' WHERE id=$1`, [driverId]);
+        await this.databaseService.pool.query(`UPDATE driver_locations SET trip_id = NULL, speed = 0 WHERE driver_id = $1`, [driverId]);
 
-      const endedAt = new Date();
-      await this.databaseService.pool.query(
-        `
-        UPDATE trips
-        SET
-          status = 'Completed',
-          ended_at = $2,
-          duration_seconds = EXTRACT(EPOCH FROM ($2 - started_at))
-        WHERE id = $1
-        `,
-        [tripId, endedAt]
-      );
-      await this.databaseService.pool.query(
-        `UPDATE drivers SET status='Idle' WHERE id=$1`,
-        [driverId]
-      );
-      
-      await this.databaseService.pool.query(
-        `
-        UPDATE driver_locations
-        SET
-          trip_id = NULL,
-          speed = 0
-        WHERE driver_id = $1
-        `,
-        [driverId]
-      );
-      
+        this.fleetEventsService.emitToRoom(`user:${userId}`,'tripCompleted', {
+          tripId,
+          driverId,
+          status: 'Completed',
+          speed: 0
+        });
+      }
 
-    this.fleetEventsService.emit('tripCompleted', {
-      tripId,
-      driverId,
-      status: 'Completed',
-      speed: 0
-    });
  } catch (error) {
-      console.error('PROCESSOR ERROR:', error);
+      console.error('SIMULATION TICK ERROR:', error);
     }
   }
 

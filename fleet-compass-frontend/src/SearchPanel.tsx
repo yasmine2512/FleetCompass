@@ -17,10 +17,6 @@ const ICON_BTN: React.CSSProperties = {
   transition: "background 0.15s",
 };
 
-function driverAvailability(d: Driver): Status {
-  return d.status;
-}
-
 const AVAIL_STYLE: Record<Status, React.CSSProperties> = {
   Idle:   { color: "#4ade80", background: "rgba(34,197,94,0.10)",  border: "1px solid rgba(34,197,94,0.3)"  },
   Offline:     { color: "#94a3b8", background: "rgba(148,163,184,0.08)", border: "1px solid rgba(148,163,184,0.25)" },
@@ -45,11 +41,22 @@ function SearchPanel({ drivers, trips, onClose, onFindOnMap, onDeleteDriver, onA
   const [statusFilter, setStatusFilter] = useState("");
   const [totalTripsCount, setTotalTripsCount] = useState(0);
 
+  const [driverStatusFilter, setDriverStatusFilter] = useState("");
+  const [driverPage, setDriverPage] = useState(1);
+
   /* ── filtered lists ── */
-  const filteredDrivers = drivers.filter(d =>
-    d.name.toLowerCase().includes(q.toLowerCase()) 
-   // || d.order.toLowerCase().includes(q.toLowerCase())
+  const filteredDrivers = drivers.filter(d => {
+    const matchesQuery = d.name.toLowerCase().includes(q.toLowerCase());
+    const matchesStatus = driverStatusFilter === "" || d.status === driverStatusFilter;
+    return matchesQuery && matchesStatus;
+  });
+
+  const totalDriverPages = Math.ceil(filteredDrivers.length / 8) || 1;
+  const pagedDrivers = filteredDrivers.slice(
+    (driverPage - 1) * 8,
+    driverPage * 8
   );
+
   const filteredTrips = trips.filter(t =>
     t.order_name.toLowerCase().includes(q.toLowerCase()) ||
     t.driver_name.toLowerCase().includes(q.toLowerCase())
@@ -66,6 +73,7 @@ function SearchPanel({ drivers, trips, onClose, onFindOnMap, onDeleteDriver, onA
     if (confirmDel?.kind === "driver" && confirmDel.id === id) {
       onDeleteDriver(id);
       setConfirmDel(null);
+      setDriverPage(1);
     } else {
       setConfirmDel({ kind: "driver", id });
     }
@@ -74,6 +82,7 @@ function SearchPanel({ drivers, trips, onClose, onFindOnMap, onDeleteDriver, onA
     if (confirmDel?.kind === "trip" && confirmDel.id === id) {
       onDeleteTrip(id);
       setConfirmDel(null);
+      setTripPage(1);
     } else {
       setConfirmDel({ kind: "trip", id });
     }
@@ -85,7 +94,7 @@ const fetchTripsData = async () => {
     // 1. Call the updated client function with your active states
     const response = await fleetApi.getTrips(
       tripPage, 
-      10, 
+      8, 
       statusFilter
     );
 
@@ -99,19 +108,21 @@ const fetchTripsData = async () => {
   }
 };
 
-// Auto-trigger data refresh when options shift
 useEffect(() => {
-  if (tab === "trips") {
-    setTripPage(1);
-    fetchTripsData();
-  }
+  if (tab === "trips") {fetchTripsData();}
 }, [tab, tripPage, statusFilter]);
 
+useEffect(() => {
+    setDriverPage(1);
+  }, [driverStatusFilter, q]);
 // Reset page offset back to 1 if filter criteria changes mid-view
 const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
   setStatusFilter(e.target.value);
   setTripPage(1);
 };
+const handleDriverStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setDriverStatusFilter(e.target.value);
+  };
 
   /* ── shared panel button style ── */
   const tabBtn = (active: boolean): React.CSSProperties => ({
@@ -140,11 +151,11 @@ const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         onClick={e => e.stopPropagation()}>
         {/* ── modal header ── */}
         <div style={{
-          padding: "14px 18px", borderBottom: "1px solid rgba(51,65,85,0.4)",
+          padding: "14px 18px",height:"45px" , borderBottom: "1px solid rgba(51,65,85,0.4)",
           display: "flex", alignItems: "center", gap: 10, flexShrink: 0,
         }}>
           {/* title */}
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#818cf8" strokeWidth="2.5" strokeLinecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#818cf8" strokeWidth="2.5" strokeLinecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
           <span style={{ color: "#c7d2fe", fontSize: 13, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase" }}>Fleet Manager</span>
           <div style={{ flex: 1 }} />
           <button onClick={onClose} style={{ ...ICON_BTN, color: "#475569" }}
@@ -158,7 +169,7 @@ const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         <div style={{
           display: "flex", alignItems: "center",
           borderBottom: "1px solid rgba(51,65,85,0.4)", flexShrink: 0,
-          background: "rgba(15,23,42,0.6)", gap: 0,
+          background: "rgba(15,23,42,0.6)", gap: 0,height:"45px"
         }}>
           <button style={tabBtn(tab === "drivers")} onClick={() => { setTab("drivers"); setQ(""); }}>
             <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -177,6 +188,24 @@ const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
 
           {/* spacer */}
           <div style={{ flex: 1 }} />
+          {tab === "drivers" && (
+            <div style={{ padding: "0 10px", display: "flex", alignItems: "center" }}>
+              <select
+                value={driverStatusFilter}
+                onChange={handleDriverStatusChange}
+                style={{
+                  background: "rgba(30,41,59,0.6)", border: "1px solid rgba(51,65,85,0.5)",
+                  borderRadius: 6, color: "#cbd5e1", fontSize: 11, padding: "4px 8px",
+                  outline: "none", cursor: "pointer", fontFamily: "inherit"
+                }}
+              >
+                <option value="">All Statuses</option>
+                <option value="Idle">Idle</option>
+                <option value="En Route">En Route</option>
+                <option value="Offline">Offline</option>
+              </select>
+            </div>
+          )}
           {/* Status Dropdown Filter*/}
           {tab === "trips" && (
           <div style={{ padding: "0 10px", display: "flex", alignItems: "center" }}>
@@ -235,42 +264,47 @@ const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         </div>
 
         {/* ── table area ── */}
-        <div style={{ overflowY: "auto", flex: 1 ,minHeight: "500px"}}>
+        <div style={{ overflowY: "auto", flex: 1 ,minHeight: "380px"}}>
 
       {/* ────── DRIVERS TAB ────── */}
       {tab === "drivers" && (
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
           <thead>
             <tr>
-              {["Driver Name", "Status", "Actions"].map(h => (
+              {["Driver Name","Phone Number", "Status", "Actions"].map(h => (
                 <th key={h} style={TH_STYLE}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {filteredDrivers.map((d, i) => {
-            const avail = driverAvailability(d);
+            {pagedDrivers.map((d, i) => {
             const isConfirmingDel = confirmDel?.kind === "driver" && confirmDel.id === d.id;
             return (
             <tr key={d.id} style={{ borderBottom: "1px solid rgba(51,65,85,0.18)", background: i % 2 === 0 ? "transparent" : "rgba(30,41,59,0.15)", transition: "background 0.1s" }}>
 
               {/* name */}
+          <td style={TD_STYLE}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 9 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+                  <div style={{ width: 20, height: 20, borderRadius: 8, background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.25)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#818cf8" strokeWidth="2.2" strokeLinecap="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                  </div>
+                  <div style={{ color: "#e2e8f0", fontWeight: 700, fontSize: 12 }}>{d.name}</div>
+                </div>
+                {/* Speed aligned to the absolute right side of the cell layout frame */}
+                <span style={{ color: "#475569", fontSize: 10, fontFamily: "monospace", paddingRight: "4px" }}>{d.speed} mph</span>
+              </div>
+            </td>
               <td style={TD_STYLE}>
                 <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-                  <div style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.25)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#818cf8" strokeWidth="2.2" strokeLinecap="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                  </div>
-                  <div>
-                    <div style={{ color: "#e2e8f0", fontWeight: 700, fontSize: 12 }}>{d.name}</div>
-                    <div style={{ color: "#475569", fontSize: 10, fontFamily: "monospace" }}>{d.speed} mph</div>
-                  </div>
+                    <div style={{ color: "#e2e8f0", fontWeight: 700, fontSize: 12 }}>{d.phone_number}</div>
                 </div>
               </td>
 
               {/* availability */}
               <td style={TD_STYLE}>
-                <span style={{ fontSize: 10, padding: "3px 9px", borderRadius: 20, fontWeight: 700, letterSpacing: "0.04em", ...AVAIL_STYLE[avail] }}>
-                  <span style={{ marginRight: 5 }}>●</span>{avail}
+                <span style={{ fontSize: 10, padding: "3px 9px", borderRadius: 20, fontWeight: 700, letterSpacing: "0.04em", ...AVAIL_STYLE[d.status] }}>
+                  <span style={{ marginRight: 5 }}>●</span>{d.status}
                 </span>
               </td>
 
@@ -320,10 +354,10 @@ const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
               );
             })}
             {filteredDrivers.length === 0 && (
-              <tr><td colSpan={4} style={{ padding: 40, textAlign: "center", color: "#334155", fontSize: 13 }}>
-                {q ? `No drivers match "${q}"` : "No drivers registered"}
-              </td></tr>
-            )}
+                  <tr><td colSpan={4} style={{ padding: 40, textAlign: "center", color: "#334155", fontSize: 13 }}>
+                    {q || driverStatusFilter ? "No drivers match filter criteria" : "No drivers registered"}
+                  </td></tr>
+                )}
           </tbody>
         </table>
       )}
@@ -341,14 +375,14 @@ const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
           <tbody>
         {filteredTrips.map((t, i) => {
           const isConfirmingDel = confirmDel?.kind === "trip" && confirmDel.id === t.id;
-          const driver = null; // trips carry driverName directly
           return (
-            <tr key={t.id} style={{ borderBottom: "1px solid rgba(51,65,85,0.18)", background: i % 2 === 0 ? "transparent" : "rgba(30,41,59,0.15)" }}>
+            <tr key={t.id} style={{ borderBottom: "1px solid rgba(51,65,85,0.18)", background: i % 2 === 0 ? "transparent" : "rgba(30,41,59,0.15)" ,margin:5}}>
 
               {/* order */}
-              <td style={TD_STYLE}>
-                <div style={{ color: "#e2e8f0", fontWeight: 700, fontFamily: "monospace", fontSize: 11 }}>{t.order_name}</div>
-                <div style={{ color: "#334155", fontSize: 10, marginTop: 2 }}>#{String(t.id).slice(-6)}</div>
+              <td style={TD_STYLE }>
+                <div style={{ color: "#e2e8f0", fontWeight: 700, fontFamily: "monospace", fontSize: 13 }}>
+                  <span style={{ color: "#334155", fontSize: 10, marginTop: 2 }}>#{String(t.id).slice(-6)}</span> 
+                  &nbsp;{t.order_name}</div>
               </td>
 
               {/* driver */}
@@ -428,19 +462,53 @@ const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
           );
         })}
             {filteredTrips.length === 0 && (
-              <tr><td colSpan={6} style={{ padding: 40, textAlign: "center", color: "#334155", fontSize: 13 }}>
-                {q ? `No trips match "${q}"` : "No trips recorded yet"}
-              </td></tr>
-            )}
+                  <tr><td colSpan={6} style={{ padding: 40, textAlign: "center", color: "#334155", fontSize: 13 }}>
+                    {q || statusFilter ? "No trips match filter criteria" : "No trips recorded yet"}
+                  </td></tr>
+                )}
           </tbody>
         </table>
-        
       )}
-    </div>
-      {/* ── Pagination UI Control Segment Footer (Trips Only) ── */}
-    {tab === "trips" && totalPages > 1 && (
+      {tab === "drivers" && totalDriverPages > 1 && (
+          <div style={{
+            padding: "8px 14px", borderTop: "1px solid rgba(51,65,85,0.4)",
+            background: "rgba(15,23,42,0.6)", display: "flex",
+            alignItems: "center", justifyContent: "space-between", flexShrink: 0
+          }}>
+            <span style={{ fontSize: 11, color: "#64748b", fontFamily: "monospace" }}>
+              Page {driverPage} of {totalDriverPages}
+            </span>
+            <div style={{ display: "flex", gap: 6 }}>
+              <button
+                disabled={driverPage === 1}
+                onClick={() => setDriverPage(prev => Math.max(1, prev - 1))}
+                style={{
+                  padding: "3px 10px", background: driverPage === 1 ? "rgba(30,41,59,0.2)" : "rgba(30,41,59,0.8)",
+                  border: "1px solid rgba(51,65,85,0.4)", borderRadius: 6,
+                  color: driverPage === 1 ? "#475569" : "#cbd5e1", fontSize: 11, fontWeight: 600,
+                  cursor: driverPage === 1 ? "not-allowed" : "pointer"
+                }}
+              >
+                Previous
+              </button>
+              <button
+                disabled={driverPage === totalDriverPages}
+                onClick={() => setDriverPage(prev => Math.min(totalDriverPages, prev + 1))}
+                style={{
+                  padding: "3px 10px", background: driverPage === totalDriverPages ? "rgba(30,41,59,0.2)" : "rgba(30,41,59,0.8)",
+                  border: "1px solid rgba(51,65,85,0.4)", borderRadius: 6,
+                  color: driverPage === totalDriverPages ? "#475569" : "#cbd5e1", fontSize: 11, fontWeight: 600,
+                  cursor: driverPage === totalDriverPages ? "not-allowed" : "pointer"
+                }}
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
+      {tab === "trips" && totalPages > 1 && (
       <div style={{
-        padding: "10px 18px",
+        padding: "8px 14px",
         borderTop: "1px solid rgba(51,65,85,0.4)",
         background: "rgba(15,23,42,0.6)",
         display: "flex",
@@ -457,7 +525,7 @@ const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
             disabled={tripPage === 1}
             onClick={() => setTripPage(prev => Math.max(1, prev - 1))}
             style={{
-              padding: "5px 12px", background: tripPage === 1 ? "rgba(30,41,59,0.2)" : "rgba(30,41,59,0.8)",
+              padding: "3px 10px", background: tripPage === 1 ? "rgba(30,41,59,0.2)" : "rgba(30,41,59,0.8)",
               border: "1px solid rgba(51,65,85,0.4)", borderRadius: 6,
               color: tripPage === 1 ? "#475569" : "#cbd5e1", fontSize: 11, fontWeight: 600,
               cursor: tripPage === 1 ? "not-allowed" : "pointer"
@@ -470,7 +538,7 @@ const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
             disabled={tripPage === totalPages}
             onClick={() => setTripPage(prev => Math.min(totalPages, prev + 1))}
             style={{
-              padding: "5px 12px", background: tripPage === totalPages ? "rgba(30,41,59,0.2)" : "rgba(30,41,59,0.8)",
+              padding: "3px 10px", background: tripPage === totalPages ? "rgba(30,41,59,0.2)" : "rgba(30,41,59,0.8)",
               border: "1px solid rgba(51,65,85,0.4)", borderRadius: 6,
               color: tripPage === totalPages ? "#475569" : "#cbd5e1", fontSize: 11, fontWeight: 600,
               cursor: tripPage === totalPages ? "not-allowed" : "pointer"
@@ -481,6 +549,9 @@ const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         </div>
       </div>
     )}
+    </div>
+      {/* ── Pagination UI Control Segment Footer (Trips Only) ── */}
+    
     {/* ── Add Driver modal overlay ── */}
     {showAdd && <AddDriverModal onAdd={handleAddDriver} onCancel={() => setShowAdd(false)} />}
   </div>

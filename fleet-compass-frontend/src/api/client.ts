@@ -20,19 +20,22 @@ export const fleetApi = {
   deleteTrip: (id: string) => api.delete(`/fleets/${id}`),
   deleteDriver: (id: number) => api.delete(`/fleets/drivers/${id}`),
   getRoute: (id:number) => api.get(`fleets/${id}`),
-  logout:()=> api.post(
-    "http://localhost:3001/user/logout",
-    {
-      withCredentials: true,
-    }
+  logout:()=> api.post("/user/logout",
+    {withCredentials: true}
   ),
   updateProfile: (fullName: string, fleet: string) => {
     return api.put(
-      "http://localhost:3001/user/update-profile",
+      "/user/update-profile",
       { fullName, fleet },
       { withCredentials: true }
     );
-  }
+  },
+  deleteAccount:()=> api.delete('/user', {
+    withCredentials: true, 
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  })
 };
 
 export const socket = io("http://localhost:3001", {

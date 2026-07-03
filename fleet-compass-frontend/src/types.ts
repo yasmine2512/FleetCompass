@@ -1,3 +1,9 @@
+export interface UserMetadata {
+  fullName?: string;
+  email?: string;
+  fleet?: string;
+}
+
 export type Status = "Idle" | "En Route" | "Offline" ;
 
 export interface Driver {
@@ -94,7 +100,7 @@ export interface Errors {
   confirm?: string;
   form?: string;
 }
-interface SettingsForm{
+export interface SettingsForm{
   fullName:string;
   email: string;
   fleet:string;

@@ -5,7 +5,7 @@ import { LoginUserDto } from './dto/login-user.dto';
 import pg from 'pg';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { Response } from 'express';
-import { UnauthorizedException ,BadRequestException } from '@nestjs/common';
+import { UnauthorizedException ,BadRequestException,InternalServerErrorException } from '@nestjs/common';
 import { DatabaseService } from 'src/database/database.service';
 @Injectable()
 export class UserService {
@@ -127,4 +127,20 @@ async updateMetadata(userId:string,updateDto:UpdateUserDto){
       user: data.user,
     };
 }
+
+async deleteProfile(userId: string){
+  const { data, error } = await 
+  this.databaseService.supabase.auth.admin.deleteUser(userId);
+  if (error) {
+    console.error("Supabase profile deletion error:", error.message);
+    throw new InternalServerErrorException(error.message); 
+  }
+ console.log("Purged User:", data.user.id);
+  return {
+    success: true,
+    user: data.user
+  };
+}
+
+
 }

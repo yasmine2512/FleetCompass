@@ -26,15 +26,34 @@ export class RouteProcessor extends WorkerHost {
   }
 
   async process(job: Job<any>): Promise<any> {
-    const { tripId, driverId, orderName, coordinates } = job.data;
-
+    const {id, driverId, orderName, coordinates } = job.data;
+      console.log('NEW TRIP Requested');
+    let tripId: number | null = null;
     try {
       const route = await this.fleetService.getRoute(coordinates);
 
-      await this.databaseService.pool.query(
-        `UPDATE trips SET status = 'Ongoing' WHERE id = $1`,
-        [tripId]
+      const startedAt = new Date()
+      const tripResult = await this.databaseService.pool.query(
+        `INSERT INTO trips
+        (driver_id,order_name,status,started_at,user_id)
+        VALUES ($1,$2,$3,$4,$5)
+        RETURNING id`,
+        [driverId,orderName,'Pending',startedAt,id],
       );
+      const tripId = tripResult.rows[0].id;
+      console.log("trip Requested");
+      this.fleetEventsService.emitToRoom(`user:${id}`,'tripRequested', { tripId, status: 'Pending' });
+
+    //   await this.databaseService.pool.query(
+    //   `UPDATE drivers SET status = 'En Route' 
+    //   WHERE id = $1 AND user_id = $2`,
+    //   [driverId,id]
+    // );
+
+    //   await this.databaseService.pool.query(
+    //     `UPDATE trips SET status = 'Ongoing' WHERE id = $1`,
+    //     [tripId]
+    //   );
 
       const lineString = route
       .map((p: number[]) => `${p[0]} ${p[1]}`)
@@ -54,6 +73,7 @@ export class RouteProcessor extends WorkerHost {
         tripId,
         driverId,
         route,
+        userId:id
       }, {
         removeOnComplete: true,
         removeOnFail: true,
@@ -61,21 +81,27 @@ export class RouteProcessor extends WorkerHost {
 
       console.log(`Successfully throttled and activated route for trip: ${tripId}`);
 
-      this.fleetEventsService.emitToRoom(`trip:${tripId}`, 'tripStarted', {
+    } catch (err : any) {
+      console.error("Error starting trip:", err.message || err);
+    
+      if (tripId) {
+        await this.databaseService.pool.query(
+          `UPDATE trips SET status = 'Failed' WHERE id = $1`, 
+          [tripId]
+        );
+      }
+      const isRouteError = err.message === 'INVALID_ROUTING_POINTS';
+      const userMessage = isRouteError 
+        ? 'Could not calculate a driving route. Please ensure locations are on land and accessible by vehicles.'
+        : 'Failed to start trip due to routing infrastructure error';
+
+      this.fleetEventsService.emitToRoom(`user:${id}`, 'error', {
+        message: userMessage,
+        code: isRouteError ? 'INVALID_ROUTING_POINTS' : 'ROUTING_ERROR',
         tripId,
         driverId,
-        orderName,
-        status: 'Ongoing',
       });
 
-    } catch (err) {
-      console.error(`Failed to process throttled route for trip ${tripId}:`, err);
-      await this.databaseService.pool.query(`UPDATE trips SET status = 'failed' WHERE id = $1`, [tripId]);
-      this.fleetEventsService.emitToRoom(`trip:${tripId}`, 'error', {
-        message: 'Failed to start trip due to routing error',
-        tripId,
-        driverId,
-      });
-    }
+      throw err;
+    }}
   }
-}
