@@ -3,11 +3,7 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { Socket } from 'socket.io';
 import axios from 'axios';
-import pg from 'pg';
 import { CreateFleetDto } from './dto/create-fleet.dto';
-import { UpdateFleetDto } from './dto/update-fleet.dto';
-import { UpdateTripStatusDto } from './dto/update-fleet-status.dto';
-import { locationIngestion } from './location.processor';
 import { DatabaseService } from 'src/database/database.service';
 import { FleetEventsService } from './fleet-events.service';
 @Injectable()
@@ -75,11 +71,6 @@ export class FleetService {
       }, {
         removeOnComplete: true,
         removeOnFail: true,
-        attempts: 3, // Retry up to 3 times before calling it quits
-        backoff: {
-          type: 'exponential',
-          delay: 5000, // Wait 5s, then 10s, then 20s
-  }
       });
     } catch (error) {
       console.error(error);
@@ -90,29 +81,39 @@ export class FleetService {
     }
   }
 
-async findAll(userId: string, page: number = 1, limit: number = 10, status?: string
-) {
+async findAll(userId: string, page: number = 1, limit: number = 8, 
+  status?: string,search?: string) {
   const validatedPage = Math.max(1, page);
   const validatedLimit = Math.max(1, limit);
   const offset = (validatedPage - 1) * validatedLimit;
+  
   const queryParams: any[] = [userId];
   let filterSql = `WHERE t.user_id = $1`;
+  
   if (status && status.trim() !== "") {
     queryParams.push(status);
     filterSql += ` AND t.status = $${queryParams.length}`;
   }
-  const countResult = await this.databaseService.pool.query(`
+  if (search && search.trim() !== "") {
+    queryParams.push(`%${search.trim()}%`);
+    filterSql += ` AND (t.order_name ILIKE $${queryParams.length} OR d.name ILIKE $${queryParams.length})`;
+  }
+  const countQuery = `
     SELECT COUNT(*) as total
     FROM trips t
+    LEFT JOIN drivers d ON d.id = t.driver_id
     ${filterSql};
-  `, queryParams);
+  `;
+  const countResult = await this.databaseService.pool.query(countQuery, queryParams);
   
   const totalRecords = parseInt(countResult.rows[0].total, 10);
   const totalPages = Math.ceil(totalRecords / validatedLimit);
   queryParams.push(validatedLimit);
   const limitIndex = queryParams.length;
+  
   queryParams.push(offset);
   const offsetIndex = queryParams.length;
+  
   const mainQuery = `
     SELECT 
       t.id,
@@ -141,21 +142,6 @@ async findAll(userId: string, page: number = 1, limit: number = 10, status?: str
   };
 }
 
-
-  async update(id: number,status: UpdateTripStatusDto) {
-    await this.databaseService.pool.query(
-      `
-      UPDATE trips
-      SET status = $1
-      WHERE id = $2
-      `,
-      [status, id],
-    );
-
-    return {
-      message: 'Trip updated successfully',
-    };
-  }
 
   async remove(id: number,userId:string) {
     const result = await this.databaseService.pool.query(
@@ -225,7 +211,8 @@ async findAll(userId: string, page: number = 1, limit: number = 10, status?: str
     );
 
     await client.query("COMMIT");
-    this.fleetEventsService.emit('driverCreated', {driver,lng,lat});
+    this.fleetEventsService.emitToRoom(`user:${user_id}`,'driverCreated', {driver,lng,lat});
+    return { success: true, driver:driver };
   } catch (e) {
     await client.query("ROLLBACK");
     throw e;
@@ -283,33 +270,28 @@ async findAll(userId: string, page: number = 1, limit: number = 10, status?: str
 
 async findOne(tripId: number, userId: string) {
   const result = await this.databaseService.pool.query(
-    `SELECT
-    json_agg(
+    `SELECT 
+      json_agg(
         json_build_array(
-            ST_Y(dp.geom),
-            ST_X(dp.geom)
+          ST_Y(dp.geom), 
+          ST_X(dp.geom)
         )
-        ORDER BY dp.path
-    ) AS coordinates
-FROM (
-    SELECT
-        (dump).path,
-        (dump).geom
-    FROM trip_routes tr
-    CROSS JOIN LATERAL ST_DumpPoints(tr.route) AS dump
-    INNER JOIN trips t
-        ON tr.trip_id = t.id
-    WHERE tr.trip_id = $1
-      AND t.user_id = $2
-) dp;`,[tripId, userId],
+        ORDER BY dp.path[1]
+      ) AS coordinates
+    FROM (
+      SELECT 
+        (ST_DumpPoints(t.route)).path AS path,
+        (ST_DumpPoints(t.route)).geom AS geom
+      FROM trips t
+      WHERE t.id = $1 
+        AND t.user_id = $2
+    ) dp;`,
+    [tripId, userId],
   );
-
-const coordinates = result.rows[0].coordinates;
-if (!coordinates) {
-  throw new NotFoundException('Trip not found');
+  const coordinates = result.rows[0]?.coordinates;
+  if (!coordinates) {
+    throw new NotFoundException('Trip or route data not found');
+  }
+  return coordinates;
 }
-
-return coordinates;
-}
-
 }

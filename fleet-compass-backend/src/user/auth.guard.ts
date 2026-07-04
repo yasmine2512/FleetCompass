@@ -42,6 +42,7 @@ export class AuthGuard implements CanActivate {
         throw new UnauthorizedException();}
 
       client.data.user = data.user;
+      client.join(`user:${data.user.id}`);
 
       return true;
     }

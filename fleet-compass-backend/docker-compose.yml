@@ -6,6 +6,9 @@ services:
     container_name: fleet_redis
     ports:
       - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --maxmemory 1gb --maxmemory-policy noeviction
     networks:
       - fleet_network
     restart: unless-stopped
@@ -37,3 +40,5 @@ services:
 networks:
   fleet_network:
     driver: bridge
+volumes:
+  redis_data:    

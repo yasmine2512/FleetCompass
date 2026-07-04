@@ -1,7 +1,6 @@
 import { Processor, WorkerHost ,InjectQueue} from '@nestjs/bullmq';
 import { Job ,Queue} from 'bullmq';
 import {Injectable, OnModuleDestroy,OnModuleInit } from '@nestjs/common';
-import pg from 'pg';
 import { FleetEventsService } from './fleet-events.service';
 import { DatabaseService } from 'src/database/database.service';
 @Processor('locationIngestion',{concurrency: 50})
@@ -18,10 +17,9 @@ export class locationIngestion extends WorkerHost{
   }
 
   async process(job: Job<any>): Promise<any> {
-    console.log('NEW TRIP STARTED');
     if (job.name !== 'simulateTrip') return;
 
-    const {tripId,driverId,route, userId, pointIndex = 0, previousPoint = null, previousTimestamp = Date.now()} = job.data;
+    const {tripId,driverId,route,orderName, userId, pointIndex = 0, previousPoint = null, previousTimestamp = Date.now()} = job.data;
     if (!route || pointIndex >= route.length) return;
     console.log(`Processing tripId: ${tripId}, pointIndex: ${pointIndex}`);
     console.log('route length:', route?.length);
@@ -33,17 +31,13 @@ export class locationIngestion extends WorkerHost{
       if (pointIndex === 0) {
         console.log(`[Lifecycle] Activating Trip ${tripId} state to Ongoing...`);
         await this.databaseService.pool.query(
-          `UPDATE drivers SET status = 'En Route' WHERE id = $1 AND user_id = $2`,
-          [driverId, userId]
-        );
-        await this.databaseService.pool.query(
           `UPDATE trips SET status = 'Ongoing' WHERE id = $1`,
           [tripId]
         );
         this.fleetEventsService.emitToRoom(`user:${userId}`, 'tripStarted', {
           tripId,
           driverId,
-          status: 'Ongoing',
+          orderName:orderName,
         });
       }
 
@@ -61,23 +55,7 @@ export class locationIngestion extends WorkerHost{
         const distance = parseFloat(distanceResult.rows[0].distance);
         speed = (distance / timeElapsed) * 3.6;
       }
-       if (pointIndex % 5 === 0 || pointIndex === route.length - 1) {
-      await this.databaseService.pool.query(
-        `INSERT INTO driver_locations
-        (driver_id, trip_id, position, speed, updated_at)
-        VALUES ($1,$2,
-          ST_SetSRID(ST_MakePoint($3, $4), 4326)::geography,$5,
-          NOW())
-        ON CONFLICT (driver_id)
-        DO UPDATE SET
-          trip_id = EXCLUDED.trip_id,
-          position = EXCLUDED.position,
-          speed = EXCLUDED.speed,
-          updated_at = NOW()
-        `,
-        [driverId, tripId, longitude, latitude, speed],
-      );
-    }
+
       this.fleetEventsService.emitToRoom(`user:${userId}`,'locationUpdate', {
         tripId,
         driverId,
@@ -109,6 +87,22 @@ if (pointIndex < route.length - 1) {
           `UPDATE trips SET status = 'Completed', ended_at = $2, duration_seconds = EXTRACT(EPOCH FROM ($2 - started_at)) WHERE id = $1`,
           [tripId, endedAt]
         );
+        await this.databaseService.pool.query(
+        `INSERT INTO driver_locations
+        (driver_id, trip_id, position, speed, updated_at)
+        VALUES ($1,$2,
+          ST_SetSRID(ST_MakePoint($3, $4), 4326)::geography,$5,
+          NOW())
+        ON CONFLICT (driver_id)
+        DO UPDATE SET
+          trip_id = EXCLUDED.trip_id,
+          position = EXCLUDED.position,
+          speed = EXCLUDED.speed,
+          updated_at = NOW()
+        `,
+        [driverId, tripId, longitude, latitude, speed],
+       );
+    
         await this.databaseService.pool.query(`UPDATE drivers SET status='Idle' WHERE id=$1`, [driverId]);
         await this.databaseService.pool.query(`UPDATE driver_locations SET trip_id = NULL, speed = 0 WHERE driver_id = $1`, [driverId]);
 
@@ -121,6 +115,26 @@ if (pointIndex < route.length - 1) {
       }
 
  } catch (error) {
+      try {
+    await this.databaseService.pool.query(
+      `INSERT INTO driver_locations (driver_id, trip_id, position, speed, updated_at)
+       VALUES ($1, $2, ST_SetSRID(ST_MakePoint($3, $4), 4326)::geography, $5, NOW())
+       ON CONFLICT (driver_id)
+       DO UPDATE SET position = EXCLUDED.position, speed = 0, updated_at = NOW()`,
+      [driverId, tripId, longitude, latitude, 0]
+    );
+    await this.databaseService.pool.query(`UPDATE trips SET status = 'Failed' WHERE id = $1`, [tripId]);
+    await this.databaseService.pool.query(`UPDATE drivers SET status = 'Idle' WHERE id = $1`, [driverId]);
+    
+  } catch (dbError) {
+    console.error('Failed to save fallback location during processor exception:', dbError);
+  }
+   this.fleetEventsService.emitToRoom(`user:${userId}`,'error', {
+          message:'SIMULATION TICK ERROR',
+          tripId,
+          driverId,
+        });
+      
       console.error('SIMULATION TICK ERROR:', error);
     }
   }

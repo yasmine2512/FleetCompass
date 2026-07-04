@@ -20,21 +20,39 @@ export class FleetGateway implements OnGatewayConnection{
   @WebSocketServer()
   server!: Server;
 
+@UseGuards(AuthGuard)
+@SubscribeMessage('connectionInit')
+handleConnectionInit(@ConnectedSocket() client: Socket) {
+  const userId = client.data.user.id;
+  client.join(`user:${userId}`);
+  console.log(`Re-connected user ${userId} automatically rejoined room after refresh.`);
+  return { status: 'synchronized' };
+}
+
   afterInit() {
     this.fleetEventsService.setServer(this.server);
   }
 
   handleConnection(client: Socket) {
-    console.log('Client connected:', client.id);
+    console.log(`Client connected: ${client.id}`);
   }
 
   @UseGuards(AuthGuard)
   @SubscribeMessage('startTrip')
   async create(@MessageBody() data: CreateFleetDto, @ConnectedSocket() client: Socket) {
     const userId = client.data.user.id;
-    await client.join(`user:${userId}`);
     return this.fleetService.startTrip(data,client,userId);
   }
+
+@UseGuards(AuthGuard)
+@SubscribeMessage('AddDriver')
+async handleAddDriver(
+  @MessageBody() data: { name: string; phone: string },
+  @ConnectedSocket() client: Socket
+) {
+  const userId = client.data.user.id;
+  return this.fleetService.createDriver(data.name, data.phone, userId);
+}
 
  
 }

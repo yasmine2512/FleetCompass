@@ -31,48 +31,38 @@ export class RouteProcessor extends WorkerHost {
     let tripId: number | null = null;
     try {
       const route = await this.fleetService.getRoute(coordinates);
-
-      const startedAt = new Date()
-      const tripResult = await this.databaseService.pool.query(
-        `INSERT INTO trips
-        (driver_id,order_name,status,started_at,user_id)
-        VALUES ($1,$2,$3,$4,$5)
-        RETURNING id`,
-        [driverId,orderName,'Pending',startedAt,id],
-      );
-      const tripId = tripResult.rows[0].id;
-      console.log("trip Requested");
-      this.fleetEventsService.emitToRoom(`user:${id}`,'tripRequested', { tripId, status: 'Pending' });
-
-    //   await this.databaseService.pool.query(
-    //   `UPDATE drivers SET status = 'En Route' 
-    //   WHERE id = $1 AND user_id = $2`,
-    //   [driverId,id]
-    // );
-
-    //   await this.databaseService.pool.query(
-    //     `UPDATE trips SET status = 'Ongoing' WHERE id = $1`,
-    //     [tripId]
-    //   );
-
       const lineString = route
       .map((p: number[]) => `${p[0]} ${p[1]}`)
       .join(',');
 
+      const startedAt = new Date()
+      const tripResult = await this.databaseService.pool.query(
+    `INSERT INTO trips
+    (driver_id, order_name, status, started_at, user_id, route)
+    VALUES ($1, $2, 'Pending', $3, $4, ST_GeomFromText($5, 4326))
+    RETURNING id`,
+    [
+      driverId, 
+      orderName, 
+      startedAt, 
+      id,
+      `LINESTRING(${lineString})`
+    ]
+  );
+      const tripId = tripResult.rows[0].id;
+      console.log("trip Requested");
+      this.fleetEventsService.emitToRoom(`user:${id}`,'tripRequested', { tripId, status: 'Pending' });
+
       await this.databaseService.pool.query(
-      `
-      INSERT INTO trip_routes (trip_id, route)
-      VALUES ($1,ST_GeomFromText($2, 4326))
-      ON CONFLICT (trip_id)
-      DO NOTHING
-      `,
-      [tripId, `LINESTRING(${lineString})`]
-    );
+      `UPDATE drivers SET status = 'En Route' WHERE id = $1 AND user_id = $2`,
+      [driverId, id]
+        );
 
       await this.locationQueue.add('simulateTrip', {
         tripId,
         driverId,
         route,
+        orderName,
         userId:id
       }, {
         removeOnComplete: true,
@@ -88,6 +78,10 @@ export class RouteProcessor extends WorkerHost {
         await this.databaseService.pool.query(
           `UPDATE trips SET status = 'Failed' WHERE id = $1`, 
           [tripId]
+        );
+        await this.databaseService.pool.query(
+      `UPDATE drivers SET status = 'Idle' WHERE id = $1 AND user_id = $2`,
+      [driverId, id]
         );
       }
       const isRouteError = err.message === 'INVALID_ROUTING_POINTS';

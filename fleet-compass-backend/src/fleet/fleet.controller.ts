@@ -1,9 +1,5 @@
 import { Delete, Get,Param,Patch,Post, Controller,Body,UseGuards ,Req,Query } from '@nestjs/common';
-import { CreateFleetDto } from './dto/create-fleet.dto';
-import { UpdateFleetDto } from './dto/update-fleet.dto';
-import { CreateDriverDto } from './dto/create-driver.dto';
 import { FleetService } from './fleet.service';
-import { UpdateTripStatusDto } from './dto/update-fleet-status.dto';
 import { AuthGuard } from 'src/user/auth.guard';
 import type { Request } from 'express';
 
@@ -21,19 +17,15 @@ export class FleetController {
 
     @Get()
     findAll(@Req() req: Request,@Query('page') page?: string,
-  @Query('limit') limit?: string,@Query('status') status?: string) {
+  @Query('limit') limit?: string,@Query('status') status?: string,
+  @Query('search') search?: string) {
         return this.fleetService.findAll(req.user!.id,page ? 
-        parseInt(page, 10) : 1,limit ? parseInt(limit, 10) : 7,status);
+        parseInt(page, 10) : 1,limit ? parseInt(limit, 10) : 8,status,search);
     }
 
     @Get('drivers')
     findAllDrivers(@Req() req: Request){
         return this.fleetService.findAllDrivers(req.user!.id);
-    }
-
-    @Post('drivers')
-    CreateDriver(@Req() req: Request ,@Body() dto: CreateDriverDto){
-        return this.fleetService.createDriver(dto.name,dto.phone,req.user!.id);
     }
 
     @Get(':id')
