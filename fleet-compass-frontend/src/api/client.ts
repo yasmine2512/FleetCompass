@@ -10,10 +10,7 @@ export const fleetApi = {
   getInitialState: () => api.get("/fleets"),
   getDrivers: () => api.get("/fleets/drivers"),
   createDriver: (name: string,phone: string) => api.post("/fleets/drivers", {name,phone}),
-  getTrips: (page: number, limit: number, status?: string) => api.get("/fleets",{params: {
-      page,
-      limit,
-      status: status || undefined 
+  getTrips: (page: number, limit: number, status?: string, search?: string) => api.get("/fleets",{params: {page,limit,status: status || undefined ,search
     }
   }),
   createTrip: (data: any) => api.post("/fleets/trips", data),

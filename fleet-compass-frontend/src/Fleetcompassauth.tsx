@@ -98,7 +98,6 @@ const handleLogin = async () => {
 
 const handleSignup = async () => {
   setErrors({});
-  
   try {
     const response = await axios.post(
       "http://localhost:3001/user/signup",
@@ -114,7 +113,7 @@ const handleSignup = async () => {
     );
     console.log(response.data);
     setSuccess(true);
-    navigate("/App");
+    navigate("/confirm-email");
     
   } catch (error: any) {
     console.error("Signup failed:", error);
@@ -322,7 +321,8 @@ const handleSignup = async () => {
             {/* forgot password (login only) */}
             {mode === "login" && (
               <div className="flex justify-end -mt-1">
-                <button className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors">
+                <button className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+                onClick={()=> navigate("/forgot-password")}>
                   Forgot password?
                 </button>
               </div>

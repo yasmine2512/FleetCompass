@@ -1,158 +1,167 @@
 import type { SettingsProps } from "./types";
 
-function Settings({ onClose,setSettingsForm,settingsForm,handleSaveSettings,handleDeleteAccount}:SettingsProps){
-
-return(
-  <div style={{
-    position: "fixed", inset: 0, zIndex: 3000,
-    background: "rgba(2,6,23,0.78)", backdropFilter: "blur(6px)",
-    display: "flex", alignItems: "flex-start", justifyContent: "center",
-    paddingTop: 52,
-  }}
-  onClick={() => onClose()}>
-    
-    <div style={{
-      width: 540, maxHeight: "82vh", display: "flex", flexDirection: "column",
-      background: "rgba(15,23,42,0.98)", border: "1px solid rgba(51,65,85,0.6)",
-      borderRadius: 14, overflow: "hidden",
-      boxShadow: "0 0 60px rgba(99,102,241,0.2)",
-      position: "relative",
-    }}
-    onClick={e => e.stopPropagation()}>
-      
-      {/* Modal Header */}
-      <div style={{
-        padding: "14px 18px", borderBottom: "1px solid rgba(51,65,85,0.4)",
-        display: "flex", alignItems: "center", gap: 10, flexShrink: 0,
-      }}>
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#818cf8" strokeWidth="2.5" strokeLinecap="round">
-          <circle cx="12" cy="12" r="3"/>
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-        </svg>
-        <span style={{ color: "#c7d2fe", fontSize: 13, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase" }}>
-          Control Room Settings
-        </span>
-        <div style={{ flex: 1 }} />
-        <button onClick={() => onClose()} style={{ background: "none", border: "none", color: "#475569", cursor: "pointer", display: "flex", alignItems: "center" }}
-          onMouseEnter={e => (e.currentTarget.style.color = "#ef4444")}
-          onMouseLeave={e => (e.currentTarget.style.color = "#475569")}>
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
-      </div>
-
-      {/* Modal Content Scroll Area */}
-      <div style={{ overflowY: "auto", flex: 1, padding: "20px 24px" }}>
-        
-        {/* Profile Inputs Section */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          
-          {/* Full Name Input */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <label style={{ color: "#64748b", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>Full Name</label>
-            <input 
-              type="text"
-              value={settingsForm.fullName}
-              onChange={e => setSettingsForm({ ...settingsForm, fullName: e.target.value })}
-              style={{
-                background: "rgba(30, 41, 59, 0.5)", border: "1px solid rgba(51, 65, 85, 0.5)",
-                borderRadius: 8, padding: "10px 12px", color: "#e2e8f0", fontSize: 12, outline: "none",
-                fontFamily: "inherit"
-              }}
-            />
-          </div>
-
-          {/* Fleet Name Input */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <label style={{ color: "#64748b", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>Fleet Unit Designation</label>
-            <input 
-              type="text"
-              value={settingsForm.fleet}
-              onChange={e => setSettingsForm({ ...settingsForm, fleet: e.target.value })}
-              style={{
-                background: "rgba(30, 41, 59, 0.5)", border: "1px solid rgba(51, 65, 85, 0.5)",
-                borderRadius: 8, padding: "10px 12px", color: "#e2e8f0", fontSize: 12, outline: "none",
-                fontFamily: "inherit"
-              }}
-            />
-          </div>
-
-          {/* Email View Input (Immutable view matching context) */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <div style={{ display: "flex", justifyContent: "between", alignItems: "center" }}>
-              <label style={{ color: "#64748b", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>Email Address</label>
-            </div>
-            <input 
-              type="email"
-              disabled
-              value={settingsForm.email}
-              style={{
-                background: "rgba(15, 23, 42, 0.6)", border: "1px solid rgba(51, 65, 85, 0.25)",
-                borderRadius: 8, padding: "10px 12px", color: "#475569", fontSize: 12, cursor: "not-allowed",
-                fontFamily: "inherit"
-              }}
-            />
-          </div>
-
-        </div>
-
-        {/* Separator Rule */}
-        <hr style={{ border: "none", borderTop: "1px solid rgba(51,65,85,0.3)", margin: "24px 0" }} />
-
-        {/* Danger Zone Section */}
-        <div style={{
-          border: "1px solid rgba(239, 68, 68, 0.25)", borderRadius: 10,
-          background: "rgba(239, 68, 68, 0.03)", padding: 16
-        }}>
-          <h4 style={{ color: "#f87171", fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 6px 0", display: "flex", alignItems: "center", gap: 6 }}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-            Danger Zone
-          </h4>
-          <p style={{ color: "#64748b", fontSize: 11, margin: "0 0 14px 0", lineHeight: "1.5" }}>
-            Permanently delete your user account and purge telemetry nodes. This operation cannot be reversed.
-          </p>
-          <button
-            onClick={handleDeleteAccount}
-            style={{
-              padding: "8px 14px", background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.4)",
-              borderRadius: 6, color: "#f87171", fontSize: 11, fontWeight: 700, cursor: "pointer", transition: "all 0.15s"
-            }}
-            onMouseEnter={e => { e.currentTarget.style.background = "rgba(239,68,68,0.25)"; }}
-            onMouseLeave={e => { e.currentTarget.style.background = "rgba(239,68,68,0.15)"; }}
+function Settings({
+  onClose,
+  setSettingsForm,
+  settingsForm,
+  handleSaveSettings,
+  handleDeleteAccount,
+}: SettingsProps) {
+  return (
+    <div
+      className="fixed inset-0 z-[3000] flex items-start justify-center bg-slate-950/80 pt-14 backdrop-blur-md"
+      onClick={onClose}
+    >
+      <div
+        className="relative flex max-h-[82vh] w-[540px] flex-col overflow-hidden rounded-2xl border border-slate-700/60 bg-slate-900/95 shadow-[0_0_60px_rgba(99,102,241,0.2)]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex flex-shrink-0 items-center gap-3 border-b border-slate-700/50 px-5 py-4">
+          <svg
+            className="h-4 w-4 text-indigo-400"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
           >
-            Delete Account
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+          </svg>
+
+          <span className="text-xs font-extrabold uppercase tracking-widest text-indigo-200">
+            Control Room Settings
+          </span>
+
+          <div className="flex-1" />
+
+          <button
+            onClick={onClose}
+            className="text-slate-600 transition-colors hover:text-red-500"
+          >
+            <svg
+              className="h-4 w-4"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
           </button>
         </div>
 
-      </div>
+        {/* Content */}
+        <div className="flex-1 space-y-6 overflow-y-auto p-6">
+          <div className="space-y-4">
+            {/* Full Name */}
+            <div className="flex flex-col gap-2">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                Full Name
+              </label>
 
-      {/* Modal Bottom Toolbar Action Segment */}
-      <div style={{
-        padding: "12px 18px", borderTop: "1px solid rgba(51,65,85,0.4)",
-        background: "rgba(15,23,42,0.6)", display: "flex", justifyContent: "flex-end", gap: 10
-      }}>
-        <button
-          onClick={() => onClose()}
-          style={{
-            padding: "8px 14px", background: "transparent", border: "none",
-            borderRadius: 6, color: "#64748b", fontSize: 11, fontWeight: 700, cursor: "pointer"
-          }}
-          onMouseEnter={e => { e.currentTarget.style.color = "#94a3b8"; }}
-          onMouseLeave={e => { e.currentTarget.style.color = "#64748b"; }}
-        >
-          Cancel
-        </button>
-        <button
-          onClick={handleSaveSettings}
-          style={{
-            padding: "8px 16px", background: "linear-gradient(135deg,#6366f1,#8b5cf6)", border: "none",
-            borderRadius: 6, color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer", textTransform: "uppercase", letterSpacing: "0.04em"
-          }}
-        >
-          Save Configuration
-        </button>
-      </div>
+              <input
+                type="text"
+                value={settingsForm.fullName}
+                onChange={(e) =>
+                  setSettingsForm({
+                    ...settingsForm,
+                    fullName: e.target.value,
+                  })
+                }
+                className="rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-2 text-sm text-slate-200 outline-none transition focus:border-indigo-500"
+              />
+            </div>
 
+            {/* Fleet */}
+            <div className="flex flex-col gap-2">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                Fleet Unit Designation
+              </label>
+
+              <input
+                type="text"
+                value={settingsForm.fleet}
+                onChange={(e) =>
+                  setSettingsForm({
+                    ...settingsForm,
+                    fleet: e.target.value,
+                  })
+                }
+                className="rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-2 text-sm text-slate-200 outline-none transition focus:border-indigo-500"
+              />
+            </div>
+
+            {/* Email */}
+            <div className="flex flex-col gap-2">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                Email Address
+              </label>
+
+              <input
+                type="email"
+                disabled
+                value={settingsForm.email}
+                className="cursor-not-allowed rounded-lg border border-slate-700/40 bg-slate-900 px-3 py-2 text-sm text-slate-500"
+              />
+            </div>
+          </div>
+
+          <hr className="border-slate-700/40" />
+
+          {/* Danger Zone */}
+          <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-4">
+            <h4 className="mb-2 flex items-center gap-2 text-xs font-extrabold uppercase tracking-wider text-red-400">
+              <svg
+                className="h-3 w-3"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+              >
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                <line x1="12" y1="9" x2="12" y2="13" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
+              Danger Zone
+            </h4>
+
+            <p className="mb-4 text-xs leading-5 text-slate-500">
+              Permanently delete your user account and purge telemetry
+              nodes. This operation cannot be reversed.
+            </p>
+
+            <button
+              onClick={handleDeleteAccount}
+              className="rounded-md border border-red-500/40 bg-red-500/15 px-4 py-2 text-xs font-bold text-red-400 transition hover:bg-red-500/25"
+            >
+              Delete Account
+            </button>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="flex justify-end gap-3 border-t border-slate-700/50 bg-slate-900/60 px-5 py-3">
+          <button
+            onClick={onClose}
+            className="rounded-md px-4 py-2 text-xs font-bold text-slate-500 transition hover:text-slate-300"
+          >
+            Cancel
+          </button>
+
+          <button
+            onClick={handleSaveSettings}
+            className="rounded-md bg-gradient-to-r from-indigo-500 to-violet-500 px-5 py-2 text-xs font-bold uppercase tracking-wide text-white shadow-lg shadow-indigo-500/20 transition-all hover:scale-[1.02] hover:shadow-indigo-500/40 active:scale-[0.98]"
+          >
+            Save Configuration
+          </button>
+        </div>
+      </div>
     </div>
-  </div>
-)
-  }  export default Settings;
+  );
+}
+
+export default Settings;

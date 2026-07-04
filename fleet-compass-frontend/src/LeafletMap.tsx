@@ -202,6 +202,9 @@ function LeafletMap({ drivers, onAddLog, wizard, onMapClick, onFocusDriver, setD
           marker.setPopupContent(getDriverPopupHtml(d));
         }
       } else {
+        if (marker) {
+        map.removeLayer(marker);
+      }
         const m = L.marker([lat, lng], { icon }).addTo(map);
         m.bindPopup(""); 
         (m as any).driverId = d.id;
@@ -228,7 +231,7 @@ function LeafletMap({ drivers, onAddLog, wizard, onMapClick, onFocusDriver, setD
         driverDataRef.current.delete(id);
       }
     });
-  }, [drivers, onAddLog, onFocusDriver]);
+  }, [drivers,]);
 
   const focusOnDriver = (d: Driver) => {
     mapRef.current?.setView([d.lat, d.lng], 15, { animate: true });

@@ -35,11 +35,12 @@ function FleetCompassApp() {
   const navigate = useNavigate();
   const [user,setUser] = useState<UserMetadata>({});
   const [drivers,      setDrivers]      = useState<Driver[]>([]);
-  const [chartData,    setChartData]    = useState<number[]>(() => Array.from({ length: 100 }, () => 100));
-  const [kpi,          setKpi]          = useState<KPI>({ ingestion: 0, latency: 14 });
-  const [logs,         setLogs]         = useState<LogEntry[]>([]);
-  const tickRef = useRef(0);
   const [trips,        setTrips]        = useState<Trip[]>([]);
+  const [totalTripsCount, setTotalTripsCount] = useState(0);
+  const [chartData,    setChartData]    = useState<number[]>(() => new Array(30).fill(0));
+  const [kpi,          setKpi]          = useState<KPI>({ activeDrivers: 0, 
+    fleetStatus: 0, avgSpeed: 0 });
+  const [logs,         setLogs]         = useState<LogEntry[]>([]);
   const [showSearch,   setShowSearch]   = useState(false);
   const [dispatchPopup, setDispatchPopup] = useState<{ lat: number; lng: number } | null>(null);
   const [focusDriver,setFocusDriver] = useState<Driver>();
@@ -48,7 +49,7 @@ function FleetCompassApp() {
     step: "idle", originLat: 0, originLng: 0,
     destLat: null, destLng: null, orderName: "", assignedDriverId: null,
   });
-  
+  const pingsThisSecondRef = useRef<number>(0);
 
 
 //REST api
@@ -69,14 +70,29 @@ useEffect(() => {
       const metadata = user?.user_metadata || {};
       const fullName = metadata.fullName || 'No Name Found';
       console.log(fullName);
-
       const [driversRes, tripsRes] = await Promise.all([
         fleetApi.getDrivers(),
         fleetApi.getTrips(1,8,""),
       ]);
-      setDrivers(driversRes.data);
+      const structuredDrivers: Driver[] = 
+      driversRes.data.map((rawDriver: any) => {return {
+    id: rawDriver.id,
+    name: rawDriver.name,
+    phone_number: rawDriver.phone_number,
+    lat: rawDriver.lat,
+    lng: rawDriver.lng,
+    speed: rawDriver.speed,
+    status: rawDriver.status,
+    currentTrip: rawDriver.trip_id 
+      ? {id: rawDriver.trip_id,
+          orderName: rawDriver.order_name,
+          status: rawDriver.trip_status,}: undefined
+  };
+});
+      setDrivers(structuredDrivers);
       setTrips(tripsRes.data.data);
-      navigate("/App");
+      setTotalTripsCount(tripsRes.data.pagination.totalRecords);
+      // navigate("/App");
     } catch (err) {
       navigate("/");
     } finally {
@@ -90,10 +106,14 @@ useEffect(() => {
   socket.connect();
   
   const handleConnect = () => {
+    pushLog("Connecting to WebSocket ...", "info");
+    socket.emit("connectionInit");
+    setTimeout(() => pushLog("WebSocket CONNECTED — streaming at 1Hz", "info"), 300);
     console.log("Socket connected:", socket.id);
   };
 
   const handleDriverCreated = (data: any) => {
+    console.log("hit handleDriverCreated");
     setDrivers(prev => {
       if (prev.some(d => d.id === data.driver.id)) return prev;
       return [...prev, { ...data.driver, lat: data.lat, lng: data.lng, currentTrip: null, speed: 0 }];
@@ -102,6 +122,7 @@ useEffect(() => {
   };
 
   const handleTripRequested = (data: any) => {
+    console.log("hit handleTripRequested");
     setTrips(prev => [
       ...prev,
       {
@@ -112,6 +133,7 @@ useEffect(() => {
   };
 
   const handleTripStarted = (data: any) => {
+    console.log("hit handleTripStarted");
     console.log("started:",data.orderName);
     const { tripId, driverId, orderName } = data;
     setTrips(prev =>
@@ -137,6 +159,7 @@ useEffect(() => {
   };
 
   const handleLocationUpdate = (data: any) => {
+    pingsThisSecondRef.current += 1;
     const { driverId, latitude, longitude, speed } = data;
     setDrivers(prev =>
       prev.map(d =>
@@ -145,6 +168,16 @@ useEffect(() => {
           : d
       )
     );
+    if (speed !== undefined) {
+  setKpi((prevKpi) => {
+  const currentAvg = prevKpi.avgSpeed;
+  const newAvgSpeed = currentAvg === 0 
+    ? Math.round(data.speed) 
+    : Math.round(currentAvg * 0.95 + data.speed * 0.05);
+
+  return { ...prevKpi, avgSpeed: newAvgSpeed };
+});
+  }
   };
 
   const handleTripCompleted = (data: any) => {
@@ -154,11 +187,17 @@ useEffect(() => {
         t.id === tripId ? { ...t, status: "Completed" } : t
       )
     );
-    setDrivers(prev =>
-      prev.map(d =>
-        d.id === driverId ? { ...d, status: "Idle", speed: 0, currentTrip: undefined } : d
-      )
-    );
+    setDrivers((prev: Driver[]) => {
+    const updatedDrivers: Driver[] = prev.map(d =>
+      d.id === driverId 
+        ? { ...d, status: "Idle", speed: 0, currentTrip: undefined } 
+        : d);
+    const activeDrivers = updatedDrivers.filter(d => d.status === "En Route");
+    if (activeDrivers.length === 0) {
+      setKpi(prevKpi => ({ ...prevKpi, avgSpeed: 0 }));
+    }
+    return updatedDrivers;
+  });
   };
 
   const handleSocketError = (data: any) => {
@@ -190,7 +229,15 @@ useEffect(() => {
   socket.on("locationUpdate", handleLocationUpdate);
   socket.on("tripCompleted", handleTripCompleted);
   socket.on("error", handleSocketError);
-
+  const intervalId = setInterval(() => {
+      const totalPings = pingsThisSecondRef.current;
+      pingsThisSecondRef.current = 0;
+      setChartData((prevData) => {
+    const updated = [...prevData, totalPings];
+    if (updated.length > 30) updated.shift(); 
+    return updated;
+  });
+    }, 1000);
   return () => {
     socket.off("connect", handleConnect);
     socket.off("driverCreated", handleDriverCreated);
@@ -199,9 +246,23 @@ useEffect(() => {
     socket.off("locationUpdate", handleLocationUpdate);
     socket.off("tripCompleted", handleTripCompleted);
     socket.off("error", handleSocketError);
+    clearInterval(intervalId);
     socket.disconnect();
   };
 }, []);
+
+  useEffect(() => {
+  const activeCount = drivers.filter(d => d.status === "En Route").length;
+  const utilization = drivers.length > 0 
+    ? Math.round((activeCount / drivers.length) * 100) 
+    : 0;
+
+  setKpi((prevKpi) => ({
+    ...prevKpi,
+    activeDrivers: activeCount,
+    fleetStatus: utilization
+  }));
+}, [drivers]);
 
   const pushLog = useCallback((msg: string, type: LogType = "normal") => {
     const entry: LogEntry = { id: logSeq++, ts: nowHHMMSS(), msg, type };
@@ -216,26 +277,21 @@ useEffect(() => {
     if (!user) return;
     const t = setTimeout(() => {
       pushLog("System boot complete — telemetry stream open", "info");
-      pushLog("Connecting to WebSocket ...", "info");
       pushLog(`Welcome Back ${user.fullName}`);
-      setTimeout(() => pushLog("WebSocket CONNECTED — streaming at 1Hz", "info"), 600);
       setTimeout(() => pushLog("Map tiles loaded — CARTO Dark v4", "dim"));
     }, 200);
     return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
 
   const handleMapClick = useCallback((lat: number, lng: number) => {
       if (wizard.step === "pick-destination") {
-        // wizard step 1 complete — move to assign
         setDispatchPopup(null);
         setWizard(w => ({ ...w, step: "assign", destLat: lat, destLng: lng }));
         pushLog(`[ORDER] Destination set at ${lat.toFixed(5)}, ${lng.toFixed(5)}`, "info");
         return;
       }
-      if (wizard.step === "assign") return; // ignore clicks during assign step
-      // normal dispatch popup
+      if (wizard.step === "assign") return;
       setDispatchPopup({ lat, lng });
       // pushLog(`[DISPATCH] New task created at ${lat.toFixed(5)}, ${lng.toFixed(5)}`, "dispatch");
       //  pushLog(`[DISPATCH] new warn`, "warn");
@@ -314,8 +370,19 @@ try {
   }
 }
 const AddDriver = (name: string,phone:string) =>{
-  fleetApi.createDriver(name,phone);
-  pushLog('[Drivers] Created new Driver',"info");
+  // fleetApi.createDriver(name,phone);
+  // pushLog('[Drivers] Created new Driver',"info");
+  socket.emit('AddDriver', { 
+    name: name, 
+    phone: phone 
+  }, (response:any) => {
+    if (response?.success) {
+      console.log("Driver saved and initialized via Socket message stream!");
+      pushLog('[Drivers] Created new Driver',"info");
+    }else{
+      pushLog('[Drivers] Failed to Create new Driver',"info");
+    }
+  });
 }
 const DeleteTrip = (tripId:number) =>{
 try {
@@ -344,7 +411,7 @@ navigate("/");
 const [showSettings, setShowSettings] = useState(false);
 const [settingsForm, setSettingsForm] = useState<SettingsForm>({
   fullName:"", 
-  email:"", // Read-only view
+  email:"", 
   fleet:""
 });
 
@@ -400,8 +467,17 @@ const handleDeleteAccount = async() => {
   }
 };
 
-  const latencyColor = kpi.latency > 30 ? "#ef4444" : kpi.latency > 20 ? "#f59e0b" : "#fbbf24";
-
+const getFleetStatusColor = (percentage: number) => {
+  if (percentage >= 85) return "#f59e0b"; 
+  if (percentage >= 30) return "#10b981"; 
+  return "#6366f1";                      
+};
+const getSpeedColor = (speed: number) => {
+  if (speed > 100) return "#f43f5e";
+  if (speed > 60) return "#f59e0b";  
+  if (speed > 0) return "#10b981";
+  return "#475569"; 
+};
   if (loading){
     return (
       <div style={{
@@ -460,9 +536,15 @@ const handleDeleteAccount = async() => {
         <div className="px-4 flex-shrink-0">
           <div  className="text-[10px] tracking-[0.1em] uppercase text-slate-500 font-semibold mb-2 pl-1">System KPIs</div>
           <div className="flex gap-2 mb-3">
-            <KpiCard label="Ingestion Rate" value={kpi.ingestion}     sub="pings / sec" />
-            <KpiCard label="Active Fleet"   value={drivers.length}    sub="vehicles online" valueColor="#a5b4fc" />
-            <KpiCard label="Queue Latency"  value={kpi.latency}       sub="ms avg"          valueColor={latencyColor} />
+            <KpiCard label="Active Fleet"
+             value={kpi.activeDrivers}     sub="En Route" 
+             valueColor={kpi.activeDrivers > 0 ? "#10b981" : "#475569"}/>
+            <KpiCard label="Fleet Status"   
+            value={`${kpi.fleetStatus} %`}
+              sub="% Active" 
+              valueColor={getFleetStatusColor(kpi.activeDrivers)} />
+            <KpiCard label="Avg Speed "  value={kpi.avgSpeed}      
+             sub="km/h Avg" valueColor={getSpeedColor(kpi.avgSpeed)} />
           </div>
         </div>
 
@@ -549,6 +631,8 @@ const handleDeleteAccount = async() => {
           onDeleteTrip={DeleteTrip}
           onShowRoute ={showRoute}
           onSetTrips ={(trip:Trip[]) => setTrips(trip)}
+          totalTripsCount={totalTripsCount}
+          setCount={(n:number)=>setTotalTripsCount(n)}
         />
       )}
 

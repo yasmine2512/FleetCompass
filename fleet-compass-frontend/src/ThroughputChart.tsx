@@ -1,26 +1,8 @@
 import { useEffect,useRef } from "react";
-import {
-  Chart,
-  LineController,
-  LineElement,
-  PointElement,
-  LinearScale,
-  CategoryScale,
-  Tooltip,
-  Legend,
-  Filler,
-} from "chart.js";
-
-Chart.register(
-  LineController,
-  LineElement,
-  PointElement,
-  LinearScale,
-  CategoryScale,
-  Tooltip,
-  Legend,
-  Filler
-);
+import {Chart,LineController,LineElement,PointElement,LinearScale,CategoryScale,
+  Tooltip,Legend,Filler,} from "chart.js";
+Chart.register(LineController,LineElement,PointElement,LinearScale,
+  CategoryScale,Tooltip,Legend,Filler);
 interface ChartProps { data: number[]; }
 
 function ThroughputChart({ data }: ChartProps) {
@@ -65,7 +47,9 @@ function ThroughputChart({ data }: ChartProps) {
             border: { display: false },
           },
           y: {
-            min: 40, max: 180,
+            min: 0,
+            beginAtZero: true,
+            grace: '20%',
             ticks: { color: "#475569", font: { size: 9, family: "monospace" }, maxTicksLimit: 4 },
             grid: { color: "rgba(51,65,85,0.25)" },
             border: { display: false },
@@ -74,7 +58,6 @@ function ThroughputChart({ data }: ChartProps) {
       },
     });
     return () => { chartRef.current?.destroy(); chartRef.current = null; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

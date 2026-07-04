@@ -1,13 +1,21 @@
 import { useState } from "react";
 
-function AddDriverModal({ onAdd, onCancel }: { onAdd: (name: string, phone: string) => void; onCancel: () => void }) {
+interface AddDriverModalProps {
+  onAdd: (name: string, phone: string) => void;
+  onCancel: () => void;
+}
+
+function AddDriverModal({
+  onAdd,
+  onCancel,
+}: AddDriverModalProps) {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
-  
-  // Basic layout criteria validation checks
-  const valid = name.trim().length > 1 && phone.trim().length >= 10;
 
-  // Helper routine to ensure all inputs submit identical arguments seamlessly
+  const valid =
+    name.trim().length > 1 &&
+    phone.trim().length >= 10;
+
   const handleSubmit = () => {
     if (valid) {
       onAdd(name.trim(), phone.trim());
@@ -15,62 +23,65 @@ function AddDriverModal({ onAdd, onCancel }: { onAdd: (name: string, phone: stri
   };
 
   return (
-    <div style={{
-      position: "absolute", inset: 0, zIndex: 10,
-      background: "rgba(2,6,23,0.82)", backdropFilter: "blur(4px)",
-      display: "flex", alignItems: "center", justifyContent: "center",
-    }}>
-      <div style={{
-        background: "rgba(15,23,42,0.99)", border: "1px solid rgba(99,102,241,0.45)",
-        borderRadius: 12, padding: 24, width: 320,
-        boxShadow: "0 0 32px rgba(99,102,241,0.2)",
-      }}>
-        <p style={{ color: "#a5b4fc", fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 14 }}>Add New Driver</p>
-        
-        {/* Driver Name Input Element */}
-        <label style={{ fontSize: 10, color: "#64748b", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", display: "block", marginBottom: 6 }}>Driver Name</label>
+    <div className="absolute inset-0 z-10 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm">
+      <div className="w-80 rounded-xl border border-indigo-500/40 bg-slate-900/95 p-6 shadow-[0_0_32px_rgba(99,102,241,0.2)]">
+
+        {/* Header */}
+        <p className="mb-4 text-xs font-bold uppercase tracking-widest text-indigo-300">
+          Add New Driver
+        </p>
+
+        {/* Driver Name */}
+        <label className="mb-2 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
+          Driver Name
+        </label>
+
         <input
-          autoFocus /* Keeps initial system focus safely localized here */
+          autoFocus
           value={name}
-          onChange={e => setName(e.target.value)}
-          onKeyDown={e => e.key === "Enter" && handleSubmit()}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) =>
+            e.key === "Enter" && handleSubmit()
+          }
           placeholder="e.g. D-KILO"
-          style={{
-            width: "100%", background: "rgba(30,41,59,0.7)", border: "1px solid rgba(51,65,85,0.6)",
-            borderRadius: 8, padding: "9px 11px", color: "#e2e8f0", fontSize: 13,
-            outline: "none", fontFamily: "inherit", marginBottom: 16,
-          }}
+          className="mb-4 w-full rounded-lg border border-slate-700 bg-slate-800/70 px-3 py-2.5 text-sm text-slate-200 outline-none transition placeholder:text-slate-500 focus:border-indigo-500"
         />
 
-        {/* Driver Phone Input Element */}
-        <label style={{ fontSize: 10, color: "#64748b", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", display: "block", marginBottom: 6 }}>Phone Number</label>
+        {/* Phone */}
+        <label className="mb-2 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
+          Phone Number
+        </label>
+
         <input
           value={phone}
-          onChange={e => setPhone(e.target.value)}
-          onKeyDown={e => e.key === "Enter" && handleSubmit()}
+          onChange={(e) => setPhone(e.target.value)}
+          onKeyDown={(e) =>
+            e.key === "Enter" && handleSubmit()
+          }
           placeholder="e.g. +15550199"
-          style={{
-            width: "100%", background: "rgba(30,41,59,0.7)", border: "1px solid rgba(51,65,85,0.6)",
-            borderRadius: 8, padding: "9px 11px", color: "#e2e8f0", fontSize: 13,
-            outline: "none", fontFamily: "inherit", marginBottom: 16,
-          }}
+          className="mb-4 w-full rounded-lg border border-slate-700 bg-slate-800/70 px-3 py-2.5 text-sm text-slate-200 outline-none transition placeholder:text-slate-500 focus:border-indigo-500"
         />
 
-        {/* Modal Action Options Row */}
-        <div style={{ display: "flex", gap: 8 }}>
+        {/* Actions */}
+        <div className="flex gap-2">
           <button
             onClick={handleSubmit}
-            style={{
-              flex: 1, padding: "8px 0", borderRadius: 8, border: "none", cursor: valid ? "pointer" : "not-allowed",
-              background: valid ? "linear-gradient(135deg,#6366f1,#8b5cf6)" : "rgba(51,65,85,0.4)",
-              color: valid ? "#fff" : "#475569", fontSize: 12, fontWeight: 700, letterSpacing: "0.05em",
-            }}
-          >Add Driver</button>
-          
+            disabled={!valid}
+            className={`flex-1 rounded-lg py-2 text-xs font-bold uppercase tracking-wide transition-all ${
+              valid
+                ? "bg-gradient-to-r from-indigo-500 to-violet-500 text-white shadow-lg shadow-indigo-500/20 hover:scale-[1.02] hover:shadow-indigo-500/40 active:scale-[0.98]"
+                : "cursor-not-allowed bg-slate-700/40 text-slate-500"
+            }`}
+          >
+            Add Driver
+          </button>
+
           <button
             onClick={onCancel}
-            style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid rgba(51,65,85,0.5)", background: "transparent", color: "#64748b", fontSize: 12, cursor: "pointer" }}
-          >Cancel</button>
+            className="rounded-lg border border-slate-700 px-4 py-2 text-xs font-medium text-slate-400 transition-colors hover:border-slate-600 hover:text-slate-200"
+          >
+            Cancel
+          </button>
         </div>
       </div>
     </div>

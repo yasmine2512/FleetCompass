@@ -1,47 +1,32 @@
 import { useEffect } from "react";
 import type { DispatchPopupProps } from "./types";
 
-function DispatchPopup({lat,lng,onClose,onStartTrip}: DispatchPopupProps) {
+function DispatchPopup({
+  lat,
+  lng,
+  onClose,
+  onStartTrip,
+}: DispatchPopupProps) {
   // Auto close after 15 seconds
   useEffect(() => {
     const timer = setTimeout(() => {
       onClose();
     }, 15000);
+
     return () => clearTimeout(timer);
-  }, [onClose]);
+  }, []);
 
   return (
-    <div style={{
-      position: "fixed",
-      top: 64,
-      left: "50%",
-      transform: "translateX(-50%)",
-      zIndex: 2500,
-      width: 260,
-      background: "rgba(15,23,42,0.97)",
-      border: "1px solid rgba(99,102,241,0.5)",
-      borderRadius: 10,
-      padding: "12px 14px",
-      boxShadow: "0 0 24px rgba(99,102,241,0.25)",
-    }}>
+    <div className="fixed left-1/2 top-16 z-[2500] w-[260px] -translate-x-1/2 rounded-xl border border-indigo-500/50 bg-slate-900/95 p-3 shadow-[0_0_24px_rgba(99,102,241,0.25)]">
 
-      <div style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 10,
-        }}>
-        <div style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 7,
-          }}>
+      {/* Header */}
+      <div className="mb-2 flex items-center justify-between">
+        <div className="flex items-center gap-2">
           <svg
-            width="14"
-            height="14"
+            className="h-4 w-4 text-indigo-300"
             viewBox="0 0 24 24"
             fill="none"
-            stroke="#a5b4fc"
+            stroke="currentColor"
             strokeWidth="2.5"
           >
             <circle cx="12" cy="12" r="10" />
@@ -49,69 +34,45 @@ function DispatchPopup({lat,lng,onClose,onStartTrip}: DispatchPopupProps) {
             <line x1="8" y1="12" x2="16" y2="12" />
           </svg>
 
-          <span style={{
-              color: "#c4b5fd",
-              fontSize: 12,
-              fontWeight: 700,
-              letterSpacing: "0.05em",
-              textTransform: "uppercase",
-            }}>
+          <span className="text-xs font-bold uppercase tracking-wider text-violet-300">
             New Dispatch Request
           </span>
         </div>
 
-        <button onClick={onClose} style={{
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            color: "#475569",
-          }}>
+        <button
+          onClick={onClose}
+          className="text-slate-600 transition-colors hover:text-red-400"
+        >
           ✕
         </button>
       </div>
-      <div style={{
-          fontSize: 11,
-          color: "#64748b",
-          marginBottom: 12,
-          fontFamily: "monospace",
-          lineHeight: 1.7,
-        }}>
+
+      {/* Coordinates */}
+      <div className="space-y-0.5 font-mono text-[11px] leading-5 text-slate-500">
         <div>
           Latitude:{" "}
-          <span style={{ color: "#94a3b8" }}>
+          <span className="text-slate-400">
             {lat.toFixed(5)}
           </span>
         </div>
 
         <div>
           Longitude:{" "}
-          <span style={{ color: "#94a3b8" }}>
+          <span className="text-slate-400">
             {lng.toFixed(5)}
           </span>
         </div>
+      </div>
 
-<div
-  style={{
-    display: "flex",
-    gap: 6,
-    justifyContent: "flex-end",
-  }}>
-  <button onClick={onStartTrip} style={{
-      padding: "5px 10px",
-      borderRadius: 10,
-      border: "none",
-      cursor: "pointer",
-      background: "linear-gradient(135deg,#6366f1,#8b5cf6)",
-      color: "#fff",
-      fontSize: 10,
-      fontWeight: 500,
-      textTransform: "uppercase",
-      boxShadow: "0 0 12px rgba(99,102,241,0.25)",
-    }}>
-    Start Trip
-  </button>
-</div>
-  </div>
+      {/* Actions */}
+      <div className="mt-2 flex justify-end">
+        <button
+          onClick={onStartTrip}
+          className="rounded-lg bg-gradient-to-r from-indigo-500 to-violet-500 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-white shadow-lg shadow-indigo-500/20 transition-all hover:scale-[1.03] hover:shadow-indigo-500/40 active:scale-[0.98]"
+        >
+          Start Trip
+        </button>
+      </div>
     </div>
   );
 }

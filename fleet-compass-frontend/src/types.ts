@@ -80,8 +80,9 @@ export interface MapProps {
 }
 
 export interface KPI {
-  ingestion: number;
-  latency: number;
+  activeDrivers: number;
+  fleetStatus: number;
+  avgSpeed:number;
 }
 
 export interface FormState {
@@ -148,5 +149,8 @@ export interface SearchPanelProps {
   onDeleteTrip: (id: number) => void;
   onShowRoute: (id:number) => void;
   onSetTrips :(trip:Trip[]) => void;
+  totalTripsCount:number;
+  setCount:(n:number)=> void;
+
 }
 
