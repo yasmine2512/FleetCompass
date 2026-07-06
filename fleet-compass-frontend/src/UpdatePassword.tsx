@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-// import { supabase } from "../lib/supabase";
+import { Navigate, useNavigate } from "react-router-dom";
+import { supabase } from "./lib/supabase";
 
 function UpdatePassword() {
   const navigate = useNavigate();
@@ -8,23 +8,32 @@ function UpdatePassword() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [isRecoveryMode, setIsRecoveryMode] = useState(false);
   const [status, setStatus] = useState<{
     text: string;
     isError: boolean;
   } | null>(null);
+  const [state, setState] = useState<
+  "loading" | "allowed" | "invalid"
+>("loading");
+  const [success, setSuccess] = useState(false);
 
-  useEffect(() => {
-    // const {
-    //   data: { subscription },
-    // } = supabase.auth.onAuthStateChange((event) => {
-    //   if (event === "PASSWORD_RECOVERY") {
-    //     setIsRecoveryMode(true);
-    //   }
-    // });
+useEffect(() => {
+  const { data: listener } = supabase.auth.onAuthStateChange(
+    (event, session) => {
+      if (event === "PASSWORD_RECOVERY" && session) {
+        setState("allowed");
+      }
+    }
+  );
+  const timeout = setTimeout(() => {
+    setState((prev) => (prev === "allowed" ? prev : "invalid"));
+  }, 2000);
 
-    // return () => subscription.unsubscribe();
-  }, []);
+  return () => {
+    clearTimeout(timeout);
+    listener.subscription.unsubscribe();
+  };
+}, []);
 
   const handlePasswordUpdate = async (
     e: React.FormEvent<HTMLFormElement>
@@ -38,36 +47,37 @@ function UpdatePassword() {
       });
       return;
     }
-
     setLoading(true);
-    setStatus(null);
+    const { error } = await supabase.auth.updateUser({
+    password,
+  });
+  if (error) {
+    setStatus({
+      text: error.message,
+      isError: true,
+    });
+  } else {
+    setSuccess(true);
+    setStatus({
+      text: "Password updated successfully.",
+      isError: false,
+    });
 
-    try {
-      // const { error } = await supabase.auth.updateUser({
-      //   password,
-      // });
+    setTimeout(() => navigate("/"), 2000);
+  }
 
-      // if (error) throw error;
+  setLoading(false);
+};
+  
+if (state === "loading") {
+  return <div>Verifying secure link...</div>;
+}
 
-      setStatus({
-        text: "Credentials updated successfully. Redirecting to terminal...",
-        isError: false,
-      });
+if (state === "invalid") {
+  return <Navigate to="/not-found" replace />;
+}
 
-      setTimeout(() => {
-        navigate("/App");
-      }, 2000);
-    } catch (err: any) {
-      setStatus({
-        text: err.message || "Failed to compile update vector.",
-        isError: true,
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
+  return ( 
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-b from-slate-950 via-slate-950 to-slate-900 px-5">
 
       {/* Background Glow */}
@@ -93,12 +103,11 @@ function UpdatePassword() {
           credentials below.
         </p>
 
-        {/* Recovery Notice */}
-        {isRecoveryMode && (
+
           <div className="mb-5 rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-4 py-3 text-sm text-indigo-300">
             Recovery session verified. You can now choose a new password.
           </div>
-        )}
+        
 
         {/* Status */}
         {status && (
@@ -157,7 +166,7 @@ function UpdatePassword() {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || success}
             className={`mt-2 rounded-lg px-5 py-3 text-xs font-bold uppercase tracking-wider transition-all ${
               loading
                 ? "cursor-not-allowed bg-slate-700/40 text-slate-500"
@@ -171,7 +180,7 @@ function UpdatePassword() {
         </form>
       </div>
     </div>
-  );
+  )
 }
 
 export default UpdatePassword;

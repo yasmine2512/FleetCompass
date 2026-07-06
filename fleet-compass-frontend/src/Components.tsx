@@ -201,19 +201,49 @@ export function PasswordStrength({ password }: { password: string }) {
 }
 
 /* ── tick animation on success ──────────────────────────────────── */
-export function SuccessTick() {
+interface SuccessTickProps {
+  email: string;
+}
+export function SuccessTick({email}:SuccessTickProps) {
   return (
-    <div className="flex flex-col items-center justify-center gap-4 py-6">
-      <div className="w-16 h-16 rounded-full flex items-center justify-center"
-        style={{ background: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.3)" }}>
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-          style={{ animation: "drawCheck 0.5s ease forwards" }}>
-          <polyline points="20 6 9 17 4 12"/>
-        </svg>
-      </div>
-      <div className="text-center">
-        <p className="text-slate-100 font-semibold">Access granted</p>
-        <p className="text-slate-500 text-sm mt-1">Redirecting to control room…</p>
+      <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-b from-slate-950 via-slate-950 to-slate-900 px-5">
+
+      {/* Background Glow */}
+      <div className="absolute h-[400px] w-[400px] rounded-full bg-indigo-500/10 blur-[90px]" />
+
+      {/* Card */}
+      <div className="relative z-10 flex w-full max-w-[440px] flex-col items-center rounded-2xl border border-slate-700/50 bg-slate-900/85 p-8 text-center shadow-2xl backdrop-blur-xl">
+
+        {/* Mail Icon */}
+        <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-xl border border-indigo-500/30 bg-indigo-500/10 shadow-[0_0_20px_rgba(99,102,241,0.2)]">
+          <svg
+            className="h-6 w-6 text-indigo-400"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+            <polyline points="22 6 12 13 2 6" />
+          </svg>
+        </div>
+
+        {/* Title */}
+        <h2 className="mb-3 text-lg font-extrabold uppercase tracking-widest text-indigo-200">
+          Verification Sent
+        </h2>
+
+        <p className="mb-7 text-sm leading-6 text-slate-400">
+          A secure confirmation link has been transmitted to{" "}
+          <span className="font-semibold text-indigo-300">
+            {email}
+          </span>
+          . Please verify your connection to initialize the fleet
+          operations platform.
+        </p>
+
       </div>
     </div>
   );

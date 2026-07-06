@@ -1,8 +1,9 @@
 import axios from "axios";
 import { io } from "socket.io-client";
 
+const baseURL =import.meta.env.VITE_API_URL;
 export const api = axios.create({
-  baseURL: "http://localhost:3001",
+  baseURL: baseURL,
   withCredentials: true,
 });
 
@@ -17,25 +18,35 @@ export const fleetApi = {
   deleteTrip: (id: string) => api.delete(`/fleets/${id}`),
   deleteDriver: (id: number) => api.delete(`/fleets/drivers/${id}`),
   getRoute: (id:number) => api.get(`fleets/${id}`),
-  logout:()=> api.post("/user/logout",
-    {withCredentials: true}
-  ),
+  getUser: ()=> api.get('/user/me'),
+  logout:()=> api.post("/user/logout"),
   updateProfile: (fullName: string, fleet: string) => {
     return api.put(
       "/user/update-profile",
       { fullName, fleet },
-      { withCredentials: true }
     );
   },
   deleteAccount:()=> api.delete('/user', {
-    withCredentials: true, 
     headers: {
       'Content-Type': 'application/json',
     },
-  })
+  }),
+  handleOAuth:()=> window.location.href = `${baseURL}/user/oauth`,
+  resetPassword:(email:string)=>api.post('/user/reset-password',{ email }),
+  setSession:(accessToken?:string,refreshToken?:string)=> 
+    api.post('/user/set-session', {
+          access_token: accessToken,
+          refresh_token: refreshToken
+        }),
+  login:(email:string,password:string)=> api.post("/user/login",
+      {email:email,password: password,}),
+
+  signup:(name:string,fleet:string,email:string,password:string)=>
+     api.post("/user/signup",{fullName:name,fleet:fleet,
+        email:email,password:password}),
 };
 
-export const socket = io("http://localhost:3001", {
+export const socket = io(baseURL, {
   withCredentials: true,
   autoConnect: false,
 });

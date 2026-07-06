@@ -6,7 +6,7 @@ import { UpdateFleetDto } from './dto/update-fleet.dto';
 import { UseGuards} from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { AuthGuard } from 'src/user/auth.guard';
-
+import { Throttle } from '@nestjs/throttler';
 @WebSocketGateway({
    cors: {
     origin: "http://localhost:5173",
@@ -38,6 +38,7 @@ handleConnectionInit(@ConnectedSocket() client: Socket) {
   }
 
   @UseGuards(AuthGuard)
+  @Throttle({ default: { limit: 2, ttl: 60 } })
   @SubscribeMessage('startTrip')
   async create(@MessageBody() data: CreateFleetDto, @ConnectedSocket() client: Socket) {
     const userId = client.data.user.id;

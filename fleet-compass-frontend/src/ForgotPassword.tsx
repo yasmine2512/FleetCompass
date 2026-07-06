@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-// import { supabase } from "../lib/supabase";
+import { fleetApi } from "./api/client";
 
 function ForgotPassword() {
   const [email, setEmail] = useState("");
@@ -21,16 +21,17 @@ function ForgotPassword() {
     setMessage(null);
 
     try {
-      // const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      //   redirectTo: `${window.location.origin}/update-password`,
-      // });
-
-      // if (error) throw error;
-
+      const res = await fleetApi.resetPassword(email);
+      if(res.data){
       setMessage({
         text: "Reset token link broadcasted successfully. Check your telemetry inbox.",
         isError: false,
+      });}else{
+         setMessage({
+        text: "Email doesn't exist , Please enter a valid email",
+        isError: true,
       });
+      }
     } catch (err: any) {
       setMessage({
         text: err.message || "Failed to dispatch system reset vector.",

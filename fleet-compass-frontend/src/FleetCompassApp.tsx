@@ -33,7 +33,7 @@ const LOG_MSGS: Array<(d: Driver) => string> = [
 let logSeq = 0;
 function FleetCompassApp() {
   const navigate = useNavigate();
-  const [user,setUser] = useState<UserMetadata>({});
+  const [user,setUser] = useState<UserMetadata>({user_metadata:{},email:""});
   const [drivers,      setDrivers]      = useState<Driver[]>([]);
   const [trips,        setTrips]        = useState<Trip[]>([]);
   const [totalTripsCount, setTotalTripsCount] = useState(0);
@@ -58,17 +58,16 @@ const [loading, setLoading] = useState(true);
 useEffect(() => {
   (async () => {
     try {
-      const userRes = await fetch("http://localhost:3001/user/me", {
-        credentials: "include",
-      });
-      if (!userRes.ok) {
+      const userRes = await fleetApi.getUser();
+      if (!userRes) {
         navigate("/");
         return;
       }
-      const user = await userRes.json();
-      setUser(user.user_metadata);
+      const user = userRes.data;
+      console.log(user);
+      setUser(user);
       const metadata = user?.user_metadata || {};
-      const fullName = metadata.fullName || 'No Name Found';
+      const fullName = metadata.full_name || 'No Name Found';
       console.log(fullName);
       const [driversRes, tripsRes] = await Promise.all([
         fleetApi.getDrivers(),
@@ -92,8 +91,8 @@ useEffect(() => {
       setDrivers(structuredDrivers);
       setTrips(tripsRes.data.data);
       setTotalTripsCount(tripsRes.data.pagination.totalRecords);
-      // navigate("/App");
     } catch (err) {
+      console.log(err);
       navigate("/");
     } finally {
       setLoading(false);
@@ -277,7 +276,7 @@ useEffect(() => {
     if (!user) return;
     const t = setTimeout(() => {
       pushLog("System boot complete — telemetry stream open", "info");
-      pushLog(`Welcome Back ${user.fullName}`);
+      pushLog(`Welcome Back ${user.user_metadata.full_name}`);
       setTimeout(() => pushLog("Map tiles loaded — CARTO Dark v4", "dim"));
     }, 200);
     return () => clearTimeout(t);
@@ -402,7 +401,7 @@ return res.data;
 const handleLogout= async () => {
  try{
 await fleetApi.logout();
-setUser({});
+setUser({user_metadata:{},email:""});
 navigate("/");
  }catch(err){
   pushLog("Failed to Logout","warn")
@@ -418,9 +417,9 @@ const [settingsForm, setSettingsForm] = useState<SettingsForm>({
 useEffect(() => {
   if (user) {
     setSettingsForm({
-      fullName: user.fullName || "",
+      fullName: user.user_metadata.full_name || "",
       email: user.email || "", 
-      fleet: user.fleet || ""
+      fleet: user.user_metadata.fleet || ""
     });
   }
 }, [user]);

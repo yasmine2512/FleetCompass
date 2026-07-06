@@ -4,6 +4,7 @@ import { GridCanvas,LogoMark,EyeIcon,StatBadge,FormInput,
 PasswordStrength, SuccessTick} from "./Components";
 import { useNavigate } from "react-router-dom";
 import axios from 'axios';
+import { fleetApi } from "./api/client";
 type Mode = "login" | "signup";
 
 
@@ -66,23 +67,12 @@ export default function FleetCompassAuth() {
   } finally {
     setLoading(false);
   }
-    // setTimeout(() => { setLoading(false); setSuccess(true); }, 1800);
   };
 
 const handleLogin = async () => {
    setErrors({});
   try {
-    const response = await axios.post(
-      "http://localhost:3001/user/login",
-      {
-        email: form.email,
-        password: form.password,
-      },
-      {
-        withCredentials: true, // important for HttpOnly cookies
-      }
-    );
-    setSuccess(true);
+    const response = await fleetApi.login(form.email,form.password);
     console.log(response.data);
     navigate("/App");
     
@@ -99,24 +89,14 @@ const handleLogin = async () => {
 const handleSignup = async () => {
   setErrors({});
   try {
-    const response = await axios.post(
-      "http://localhost:3001/user/signup",
-      {
-        fullName: form.name,
-        fleet: form.fleet,
-        email: form.email,
-        password: form.password,
-      },
-      {
-        withCredentials: true,
-      }
-    );
+    const response = await 
+    fleetApi.signup(form.name,form.fleet,form.email,form.password);
     console.log(response.data);
     setSuccess(true);
-    navigate("/confirm-email");
     
   } catch (error: any) {
     console.error("Signup failed:", error);
+    console.error("Backend Error Message:", error.response?.data);
     if (error.response && error.response.data) {
       setErrors({
         form: error.response.data.message || "Failed to create account."
@@ -128,6 +108,9 @@ const handleSignup = async () => {
     }
   }
 };
+const handleOAuth =()=>{
+  fleetApi.handleOAuth();
+}
 
   return (
     <>
@@ -241,7 +224,7 @@ const handleSignup = async () => {
         {/* form body */}
         <div className="p-7">
           {success ? (
-            <SuccessTick />
+            <SuccessTick email={form.email}/>
           ) : (
             <div className="flex flex-col gap-4">
 
@@ -388,6 +371,7 @@ const handleSignup = async () => {
 
             {/* SSO button */}
             <button className="w-full flex items-center justify-center gap-2.5 py-2.5 rounded-lg text-sm font-semibold text-slate-300 transition-all duration-150 hover:text-slate-100"
+            onClick={handleOAuth}
               style={{ background: "rgba(30,41,59,0.6)", border: "1px solid rgba(51,65,85,0.5)" }}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
               Continue with SSO

@@ -139,30 +139,16 @@ const handleDriverStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
   });
 
   return (
-    <div style={{
-        position: "fixed", inset: 0, zIndex: 3000,
-        background: "rgba(2,6,23,0.78)", backdropFilter: "blur(6px)",
-        display: "flex", alignItems: "flex-start", justifyContent: "center",
-        paddingTop: 52,
-      }}
+    <div className="fixed inset-0 z-[3000] flex items-start justify-center pt-[52px] bg-[rgba(2,6,23,0.78)] backdrop-blur-[6px]"
       onClick={onClose}>
-      <div style={{
-          width: 820, maxHeight: "82vh", display: "flex", flexDirection: "column",
-          background: "rgba(15,23,42,0.98)", border: "1px solid rgba(51,65,85,0.6)",
-          borderRadius: 14, overflow: "hidden",
-          boxShadow: "0 0 60px rgba(99,102,241,0.2)",
-          position: "relative",
-        }}
+      <div className="relative flex flex-col w-[820px] max-h-[82vh] bg-[rgba(15,23,42,0.98)] border border-[rgba(51,65,85,0.6)] rounded-[14px] overflow-hidden shadow-[0_0_60px_rgba(99,102,241,0.2)]"
         onClick={e => e.stopPropagation()}>
         {/* ── modal header ── */}
-        <div style={{
-          padding: "14px 18px",height:"45px" , borderBottom: "1px solid rgba(51,65,85,0.4)",
-          display: "flex", alignItems: "center", gap: 10, flexShrink: 0,
-        }}>
+        <div className="flex items-center gap-2.5 px-[18px] py-[14px] h-[45px] border-b border-[rgba(51,65,85,0.4)] flex-shrink-0">
           {/* title */}
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#818cf8" strokeWidth="2.5" strokeLinecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-          <span style={{ color: "#c7d2fe", fontSize: 13, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase" }}>Fleet Manager</span>
-          <div style={{ flex: 1 }} />
+          <span className="text-[#c7d2fe] text-[13px] font-extrabold tracking-[0.08em] uppercase">Fleet Manager</span>
+          <div className="flex-1" />
           <button onClick={onClose} style={{ ...ICON_BTN, color: "#475569" }}
             onMouseEnter={e => (e.currentTarget.style.background = "rgba(239,68,68,0.12)")}
             onMouseLeave={e => (e.currentTarget.style.background = "none")}>
@@ -171,39 +157,34 @@ const handleDriverStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         </div>
 
         {/* ── tabs + toolbar ── */}
-        <div style={{
-          display: "flex", alignItems: "center",
-          borderBottom: "1px solid rgba(51,65,85,0.4)", flexShrink: 0,
-          background: "rgba(15,23,42,0.6)", gap: 0,height:"45px"
-        }}>
+        <div className="flex items-center gap-0 h-[45px] border-b border-[rgba(51,65,85,0.4)] bg-[rgba(15,23,42,0.6)] flex-shrink-0">
           <button style={tabBtn(tab === "drivers")} onClick={() => { setTab("drivers"); setQ(""); }}>
-            <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span className="flex items-center gap-1.5">
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
               Drivers
-              <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 20, background: tab === "drivers" ? "rgba(99,102,241,0.2)" : "rgba(51,65,85,0.4)", color: tab === "drivers" ? "#a5b4fc" : "#64748b", fontWeight: 700 }}>{drivers.length}</span>
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${tab === "drivers" ? "bg-[rgba(99,102,241,0.2)] text-[#a5b4fc]" : "bg-[rgba(51,65,85,0.4)] text-[#64748b]"}`}>{drivers.length}</span>
             </span>
           </button>
           <button style={tabBtn(tab === "trips")} onClick={() => { setTab("trips"); setQ(""); }}>
             <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
               Trips
-              <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 20, background: tab === "trips" ? "rgba(99,102,241,0.2)" : "rgba(51,65,85,0.4)", color: tab === "trips" ? "#a5b4fc" : "#64748b", fontWeight: 700 }}>{totalTripsCount}</span>
+              <span className={`text-[10px] px-[6px] py-[1px] rounded-full font-bold ${
+              tab === "trips"
+                ? "bg-indigo-500/20 text-indigo-300"
+                : "bg-slate-700/40 text-slate-500"
+            }`}>{totalTripsCount}</span>
             </span>
           </button>
 
           {/* spacer */}
-          <div style={{ flex: 1 }} />
+          <div className="flex-1" />
           {tab === "drivers" && (
-            <div style={{ padding: "0 10px", display: "flex", alignItems: "center" }}>
+            <div className="px-2.5 flex items-center">
               <select
+              className="bg-[rgba(30,41,59,0.6)] border border-[rgba(51,65,85,0.5)] rounded-md text-[#cbd5e1] text-[11px] px-2 py-1 outline-none cursor-pointer"
                 value={driverStatusFilter}
-                onChange={handleDriverStatusChange}
-                style={{
-                  background: "rgba(30,41,59,0.6)", border: "1px solid rgba(51,65,85,0.5)",
-                  borderRadius: 6, color: "#cbd5e1", fontSize: 11, padding: "4px 8px",
-                  outline: "none", cursor: "pointer", fontFamily: "inherit"
-                }}
-              >
+                onChange={handleDriverStatusChange}>
                 <option value="">All Statuses</option>
                 <option value="Idle">Idle</option>
                 <option value="En Route">En Route</option>
@@ -213,54 +194,44 @@ const handleDriverStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
           )}
           {/* Status Dropdown Filter*/}
           {tab === "trips" && (
-          <div style={{ padding: "0 10px", display: "flex", alignItems: "center" }}>
+          <div className="px-2.5 flex items-center">
             <select
+             className="bg-[rgba(30,41,59,0.6)] border border-[rgba(51,65,85,0.5)] rounded-md text-[#cbd5e1] text-[11px] px-2 py-1 outline-none cursor-pointer"
               value={statusFilter}
-              onChange={handleStatusChange}
-              style={{
-                background: "rgba(30,41,59,0.6)", border: "1px solid rgba(51,65,85,0.5)",
-                borderRadius: 6, color: "#cbd5e1", fontSize: 11, padding: "4px 8px",
-                outline: "none", cursor: "pointer", fontFamily: "inherit"
-              }}
-            >
+              onChange={handleStatusChange}>
               <option value="">All Statuses</option>
               <option value="Ongoing">Ongoing</option>
               <option value="Completed">Completed</option>
+              <option value="Failed">Failed</option>
+              <option value="Pending">Pending</option>
             </select>
           </div>
         )}
 
           {/* search input */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "0 12px", borderLeft: "1px solid rgba(51,65,85,0.35)" }}>
+          <div className="flex items-center gap-2 px-3 border-l border-[rgba(51,65,85,0.35)]">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2.5" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             <input
               value={q}
               onChange={e => setQ(e.target.value)}
               placeholder={tab === "drivers" ? "Search drivers…" : "Search trips…"}
-              style={{
-                background: "transparent", border: "none", outline: "none",
-                color: "#e2e8f0", fontSize: 12, width: 160, fontFamily: "inherit",
-              }}
-            />
+              className="bg-transparent border-none outline-none text-[#e2e8f0] text-[12px] w-[160px]"/>
             {q && (
               <button onClick={() => setQ("")} style={{ ...ICON_BTN, color: "#475569" }}>
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
             )}
-            <span style={{ fontSize: 10, color: "#334155", borderLeft: "1px solid rgba(51,65,85,0.35)", paddingLeft: 8 }}>{resultCount} result{resultCount !== 1 ? "s" : ""}</span>
+            <span className="text-[10px] text-slate-700 border-l border-slate-700/30 pl-2">{resultCount} result{resultCount !== 1 ? "s" : ""}</span>
           </div>
 
           {/* Add Driver button (drivers tab only) */}
           {tab === "drivers" && (
             <button
               onClick={() => setShowAdd(true)}
-              style={{
-                display: "flex", alignItems: "center", gap: 6,
-                padding: "8px 14px", margin: "6px 10px",
-                background: "linear-gradient(135deg,#6366f1,#8b5cf6)", border: "none",
-                borderRadius: 8, color: "#fff", fontSize: 11, fontWeight: 700,
-                letterSpacing: "0.05em", cursor: "pointer", textTransform: "uppercase",
-              }}
+              className="flex items-center gap-1.5 px-3.5 py-2 mx-2.5 
+              my-1.5 bg-gradient-to-br from-indigo-500 to-violet-500 
+              border-0 rounded-lg text-white text-[11px] font-bold 
+              tracking-wider cursor-pointer uppercase"
             >
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               Add Driver
@@ -269,11 +240,11 @@ const handleDriverStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         </div>
 
         {/* ── table area ── */}
-        <div style={{ overflowY: "auto", flex: 1 ,minHeight: "380px"}}>
+        <div className="overflow-y-auto flex-1 min-h-[380px]">
 
       {/* ────── DRIVERS TAB ────── */}
       {tab === "drivers" && (
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+        <table className="w-full border-collapse text-[12px]">
           <thead>
             <tr>
               {["Driver Name","Phone Number", "Status", "Actions"].map(h => (
@@ -285,19 +256,22 @@ const handleDriverStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
             {pagedDrivers.map((d, i) => {
             const isConfirmingDel = confirmDel?.kind === "driver" && confirmDel.id === d.id;
             return (
-            <tr key={d.id} style={{ borderBottom: "1px solid rgba(51,65,85,0.18)", background: i % 2 === 0 ? "transparent" : "rgba(30,41,59,0.15)", transition: "background 0.1s" }}>
+            <tr key={d.id}  className={`border-b border-slate-700/20
+               transition-colors ${i % 2 === 0 ?
+                "bg-transparent" : "bg-slate-800/15"}`}>
 
               {/* name */}
           <td style={TD_STYLE}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 9 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-                  <div style={{ width: 20, height: 20, borderRadius: 8, background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.25)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <div className="flex items-center justify-between gap-2.5">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-5 h-5 rounded-lg bg-indigo-500/10 border border-indigo-500/25 flex items-center justify-center flex-shrink-0">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#818cf8" strokeWidth="2.2" strokeLinecap="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                   </div>
-                  <div style={{ color: "#e2e8f0", fontWeight: 700, fontSize: 12 }}>{d.name}</div>
+                  <div className="text-slate-200 font-bold text-xs">
+                    {d.name}</div>
                 </div>
                 {/* Speed aligned to the absolute right side of the cell layout frame */}
-                <span style={{ color: "#475569", fontSize: 10, fontFamily: "monospace", paddingRight: "4px" }}>{d.speed?.toFixed(4)} mph</span>
+                <span className="text-slate-500 text-[10px] font-mono pr-1">{d.speed?.toFixed(4)} mph</span>
               </div>
             </td>
               <td style={TD_STYLE}>

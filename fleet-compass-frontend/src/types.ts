@@ -1,7 +1,9 @@
 export interface UserMetadata {
-  fullName?: string;
-  email?: string;
-  fleet?: string;
+  email:string;
+  user_metadata:
+  {
+  full_name?: string;
+  fleet?: string;}
 }
 
 export type Status = "Idle" | "En Route" | "Offline" ;
