@@ -1,9 +1,8 @@
-import { useState, useEffect, useRef } from "react";
+import { useState} from "react";
 import type { FormState ,Errors,Field} from "./types";
 import { GridCanvas,LogoMark,EyeIcon,StatBadge,FormInput,
 PasswordStrength, SuccessTick} from "./Components";
 import { useNavigate } from "react-router-dom";
-import axios from 'axios';
 import { fleetApi } from "./api/client";
 type Mode = "login" | "signup";
 

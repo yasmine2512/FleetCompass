@@ -1,5 +1,5 @@
 import { useState,useEffect } from "react";
-import type { SearchPanelProps ,Driver,Status,TripStatus} from "./types";
+import type { SearchPanelProps,Status,TripStatus} from "./types";
 import AddDriverModal from "./AddDriverModal";
 import { fleetApi } from "./api/client";
 const TH_STYLE: React.CSSProperties = {

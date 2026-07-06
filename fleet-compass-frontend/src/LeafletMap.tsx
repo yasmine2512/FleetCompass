@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import type { Driver, LogType, Status, TripWizard, MapProps } from './types'
+import type { Driver, Status, MapProps } from './types'
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 

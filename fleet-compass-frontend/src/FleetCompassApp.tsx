@@ -16,19 +16,6 @@ import { socket ,fleetApi} from "./api/client";
 function nowHHMMSS() {
   return new Date().toTimeString().slice(0, 8);
 }
-const DRIVER_NAMES = [
-  "D-ALPHA","D-BRAVO","D-CHARLIE","D-DELTA","D-ECHO",
-  "D-FOXTROT","D-GOLF","D-HOTEL","D-INDIA","D-JULIET",
-];
-
-const LOG_MSGS: Array<(d: Driver) => string> = [
-  d => `GPS_PING ${d.name} lat=${d.lat?.toFixed(5)} lng=${d.lng?.toFixed(5)}`,
-  d => `SPEED_UPDATE ${d.name} → ${d.speed}mph`,
-  d => `HEARTBEAT ${d.name} OK signal=strong`,
-  d => `STATUS_SYNC ${d.name} [${d.status}]`,
-  d => `ROUTE_CALC ${d.name} ETA=+${Math.floor(Math.random()*20+2)}min`,
-]
-
 
 let logSeq = 0;
 function FleetCompassApp() {
