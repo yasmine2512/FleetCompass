@@ -15,7 +15,8 @@ export const fleetApi = {
     }
   }),
   createTrip: (data: any) => api.post("/fleets/trips", data),
-  deleteTrip: (id: string) => api.delete(`/fleets/${id}`),
+  cancelTrip:(tripId:number) => api.post(`/fleets/${tripId}/cancel`),
+  deleteTrip: (id: number) => api.delete(`/fleets/${id}`),
   deleteDriver: (id: number) => api.delete(`/fleets/drivers/${id}`),
   getRoute: (id:number) => api.get(`fleets/${id}`),
   getUser: ()=> api.get('/user/me'),
@@ -46,7 +47,7 @@ export const fleetApi = {
         email:email,password:password}),
 };
 
-export const socket = io(baseURL, {
+export const socket = io("/", {
   withCredentials: true,
   autoConnect: false,
 });

@@ -167,11 +167,11 @@ const handleOAuth =()=>{
             <div className="flex items-center gap-3 mt-3">
               <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-indigo-300"
                 style={{ background: "rgba(99,102,241,0.2)", border: "1px solid rgba(99,102,241,0.3)" }}>
-                SR
+                FD
               </div>
               <div>
-                <div className="text-slate-300 text-xs font-semibold">Sara Reyes</div>
-                <div className="text-slate-600 text-xs">Head of Logistics · NovaCargo</div>
+                <div className="text-slate-300 text-xs font-semibold">Fleet Dispatcher</div>
+                <div className="text-slate-600 text-xs">Operations Manager · Fleet Compass </div>
               </div>
             </div>
           </div>
@@ -244,7 +244,7 @@ const handleOAuth =()=>{
               <>
                 <FormInput
                   id="name" label="Full name" value={form.name} error={errors.name}
-                  placeholder="Sara Reyes" autoComplete="name"
+                  placeholder="Michael Adams" autoComplete="name"
                   onChange={handleChange}
                   icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>}
                 />
@@ -260,7 +260,7 @@ const handleOAuth =()=>{
             {/* email */}
             <FormInput
               id="email" label="Email address" type="email" value={form.email} error={errors.email}
-              placeholder="sara@novacargo.com" autoComplete="email"
+              placeholder="michael@gmail.com" autoComplete="email"
               onChange={handleChange}
               icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>}
             />

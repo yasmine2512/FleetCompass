@@ -2,8 +2,10 @@ services:
   redis:
     image: redis:7-alpine
     container_name: fleet_redis
-    ports:
-      - "6379:6379"
+    # ports:
+    #   - "6379:6379"
+    expose:
+      - "6379"
     volumes:
       - redis_data:/data
     command: redis-server --appendonly yes --maxmemory 1gb --maxmemory-policy noeviction
@@ -16,12 +18,14 @@ services:
       context: ./fleet-compass-frontend
       dockerfile: Dockerfile
       args:
-        - VITE_API_URL=${VITE_API_URL}
+        - VITE_API_URL=/api
         - VITE_SUPABASE_URL=${VITE_SUPABASE_URL}
         - VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY}
     container_name: fleet_frontend
     ports:
-      - "5173:5173"
+      - "80:80"
+    depends_on:
+      - api  
     env_file:
       - .env
     networks:
@@ -33,10 +37,13 @@ services:
       context: ./fleet-compass-backend
       dockerfile: Dockerfile
     container_name: fleet_nestjs_app
-    ports:
-      - "${PORT}:${PORT}"
+    # ports:
+    #   - "${PORT}:${PORT}"
+    expose:
+      - "3001"
     environment:
-      - PORT=${PORT}
+      - PORT=3001
+      - FRONTEND_URL=${FRONTEND_URL}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - DATABASE_URL=${DATABASE_URL}

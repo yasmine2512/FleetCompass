@@ -8,6 +8,7 @@ import { FleetEventsService } from './fleet-events.service';
 import { RouteProcessor } from './route.processor';
 import { DatabaseModule } from 'src/database/database.module';
 import { UserModule } from 'src/user/user.module';
+
 @Module({
   imports: [
     BullModule.registerQueue(
@@ -15,7 +16,7 @@ import { UserModule } from 'src/user/user.module';
       { name: 'routeIngestion' }),
       DatabaseModule,UserModule
   ],
-  providers: [FleetGateway, FleetService,locationIngestion,FleetEventsService,RouteProcessor],
+  providers: [FleetGateway, FleetService,locationIngestion,FleetEventsService,RouteProcessor,],
   controllers: [FleetController],
 })
 export class FleetModule {}

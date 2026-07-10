@@ -1,5 +1,5 @@
 import type { SettingsProps } from "./types";
-
+import { useState } from "react";
 function Settings({
   onClose,
   setSettingsForm,
@@ -7,6 +7,31 @@ function Settings({
   handleSaveSettings,
   handleDeleteAccount,
 }: SettingsProps) {
+
+  const [isConfirming, setIsConfirming] = useState(false);
+  const [status, setStatus] = useState<{ type: 'saving' | 'deleting' | 'idle'| 'error', message: string }>({ type: 'idle', message: '' });
+
+  const onSave = async () => {
+    try{
+    setStatus({ type: 'saving', message: 'Saving...' });
+    handleSaveSettings();
+    setStatus({ type: 'idle', message: 'Saved successfully!' });
+    setTimeout(() => onClose(), 1500);
+    } catch (err: any) {
+      setStatus({ type: 'error', message: err });
+    }
+  };
+
+  const onDelete = async () => {
+    setStatus({ type: 'deleting', message: 'Purging account...' });
+    try{
+    await handleDeleteAccount();
+    }catch(err:any){
+      setStatus({ type: 'error', message: err });
+      setIsConfirming(false);
+    }
+  };
+
   return (
     <div
       className="fixed inset-0 z-[3000] flex items-start justify-center bg-slate-950/80 pt-14 backdrop-blur-md"
@@ -16,6 +41,7 @@ function Settings({
         className="relative flex max-h-[82vh] w-[540px] flex-col overflow-hidden rounded-2xl border border-slate-700/60 bg-slate-900/95 shadow-[0_0_60px_rgba(99,102,241,0.2)]"
         onClick={(e) => e.stopPropagation()}
       >
+
         {/* Header */}
         <div className="flex flex-shrink-0 items-center gap-3 border-b border-slate-700/50 px-5 py-4">
           <svg
@@ -110,6 +136,13 @@ function Settings({
             </div>
           </div>
 
+          {/* Status Display Area */}
+    {status.message && (
+      <div className={`px-5 py-2 text-[10px] font-bold uppercase text-center ${status.type === 'error' ? 'bg-red-500/20 text-red-400' : 'bg-indigo-500/20 text-indigo-300'}`}>
+        {status.message}
+      </div>
+    )}
+
           <hr className="border-slate-700/40" />
 
           {/* Danger Zone */}
@@ -133,13 +166,19 @@ function Settings({
               Permanently delete your user account and purge telemetry
               nodes. This operation cannot be reversed.
             </p>
-
-            <button
-              onClick={handleDeleteAccount}
-              className="rounded-md border border-red-500/40 bg-red-500/15 px-4 py-2 text-xs font-bold text-red-400 transition hover:bg-red-500/25"
-            >
-              Delete Account
-            </button>
+            {isConfirming ? (
+              <div className="space-y-3">
+                <p className="text-xs text-slate-500">Are you sure? This will permanently delete your account and all associated telemetry data.</p>
+                <div className="flex gap-3">
+                  <button onClick={() => setIsConfirming(false)} className="rounded bg-slate-700 px-3 py-1 text-xs text-white">Cancel</button>
+                  <button onClick={onDelete} className="rounded bg-red-500 px-3 py-1 text-xs text-white font-bold hover:bg-red-600">Confirm Delete</button>
+                </div>
+              </div>
+            ) : (
+              <button onClick={() => setIsConfirming(true)} className="rounded-md border border-red-500/40 bg-red-500/15 px-4 py-2 text-xs font-bold text-red-400 transition hover:bg-red-500/25">
+                Delete Account
+              </button>
+            )}
           </div>
         </div>
 
@@ -153,10 +192,10 @@ function Settings({
           </button>
 
           <button
-            onClick={handleSaveSettings}
+            onClick={onSave}
             className="rounded-md bg-gradient-to-r from-indigo-500 to-violet-500 px-5 py-2 text-xs font-bold uppercase tracking-wide text-white shadow-lg shadow-indigo-500/20 transition-all hover:scale-[1.02] hover:shadow-indigo-500/40 active:scale-[0.98]"
           >
-            Save Configuration
+            {status.type === 'saving' ? 'Saving...' : 'Save Configuration'}
           </button>
         </div>
       </div>

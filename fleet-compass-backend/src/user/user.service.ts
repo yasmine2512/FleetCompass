@@ -6,6 +6,7 @@ import { Response } from 'express';
 import { UnauthorizedException ,BadRequestException,InternalServerErrorException } from '@nestjs/common';
 import { DatabaseService } from 'src/database/database.service';
 import * as nodemailer from 'nodemailer';
+import * as validator from 'validator';
 @Injectable()
 export class UserService {
   private transporter: nodemailer.Transporter;
@@ -55,6 +56,21 @@ export class UserService {
   }
 
   async signup(createUserDto: CreateUserDto,res:Response) {
+
+    if (!validator.isEmail(createUserDto.email)) {
+    throw new BadRequestException('Invalid email format.');
+  }
+
+  const domain = createUserDto.email.split('@')[1];
+  const isDomainValid = await new Promise((resolve) => {
+    require('dns').resolveMx(domain, (err, addresses) => {
+      resolve(!err && addresses && addresses.length > 0);
+    });
+  });
+
+  if (!isDomainValid) {
+    throw new BadRequestException('The email domain does not exist.');
+  }
 
 const { data: userData, error: createError } = await this.databaseService.supabase.auth.admin.createUser({
     email: createUserDto.email,

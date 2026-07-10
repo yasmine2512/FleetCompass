@@ -2,14 +2,15 @@ import { WebSocketGateway, SubscribeMessage, MessageBody,ConnectedSocket, WebSoc
 import { FleetService } from './fleet.service';
 import { FleetEventsService } from './fleet-events.service';
 import { CreateFleetDto } from './dto/create-fleet.dto';
-import { UpdateFleetDto } from './dto/update-fleet.dto';
 import { UseGuards} from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { AuthGuard } from 'src/user/auth.guard';
 import { Throttle } from '@nestjs/throttler';
+
+
 @WebSocketGateway({
    cors: {
-    origin: "http://localhost:5173",
+    origin: process.env.FRONTEND_URL,
     credentials: true,
   },
 })

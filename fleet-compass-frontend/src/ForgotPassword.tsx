@@ -34,7 +34,7 @@ function ForgotPassword() {
       }
     } catch (err: any) {
       setMessage({
-        text: err.message || "Failed to dispatch system reset vector.",
+        text:" Email doesn't exist , Please enter a valid email",
         isError: true,
       });
     } finally {

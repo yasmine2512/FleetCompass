@@ -24,7 +24,7 @@ export interface Driver {
 }
 
 export type LogType = "normal" | "info" | "warn" | "dispatch" | "dim";
-export type TripStatus = "Pending" | "Ongoing" | "Completed" | "Failed";
+export type TripStatus = "Pending" | "Ongoing" | "Completed" | "Failed" | "Cancelled";
 
 export interface LogEntry {
   id: number;
@@ -146,13 +146,16 @@ export interface SearchPanelProps {
   trips: Trip[];
   onClose: () => void;
   onFindOnMap: (d: Driver) => void;
-  onDeleteDriver: (id: number) => void;
+  onDeleteDriver: (id: number,name:string) => void;
   onAddDriver: (name: string,phone:string) => void;
-  onDeleteTrip: (id: number) => void;
+  onDeleteTrip: (id: number,name:string) => void;
   onShowRoute: (id:number) => void;
+  onCancelTrip:(id:number) => void;
   onSetTrips :(trip:Trip[]) => void;
   totalTripsCount:number;
   setCount:(n:number)=> void;
+  totalPages:number;
+  setTotalPages:(n:number)=> void;
 
 }
 

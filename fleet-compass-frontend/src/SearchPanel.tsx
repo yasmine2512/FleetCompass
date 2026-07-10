@@ -27,17 +27,17 @@ const AVAIL_STYLE: Record<Status, React.CSSProperties> = {
 const TRIP_STATUS_STYLE: Record<TripStatus, React.CSSProperties> = {
   Pending:   { color: "#f59e0b", background: "rgba(245,158,11,0.10)",  border: "1px solid rgba(245,158,11,0.3)"  },
   Ongoing:   { color: "#4ade80", background: "rgba(34,197,94,0.10)",   border: "1px solid rgba(34,197,94,0.3)"   },
-  Completed: { color: "#64748b", background: "rgba(100,116,139,0.10)", border: "1px solid rgba(100,116,139,0.3)" },
+  Completed: {color: "#94a3b8", background: "rgba(148, 163, 184, 0.10)", border: "1px solid rgba(148, 163, 184, 0.3)"},
   Failed: { color: "#f87171", background: "rgba(239,68,68,0.10)",  border: "1px solid rgba(239,68,68,0.3)"   },
+  Cancelled: { color: "#64748b", background: "rgba(100,116,139,0.10)", border: "1px solid rgba(100,116,139,0.3)" }
 };
 
-function SearchPanel({ drivers, trips, onClose, onFindOnMap, onDeleteDriver, onAddDriver, onDeleteTrip, onShowRoute,onSetTrips,totalTripsCount,setCount}: SearchPanelProps) {
+function SearchPanel({ drivers, trips, onClose, onFindOnMap, onDeleteDriver, onAddDriver, onDeleteTrip, onShowRoute,onCancelTrip,onSetTrips,totalTripsCount,setCount,totalPages,setTotalPages}: SearchPanelProps) {
   const [tab,        setTab]        = useState<"drivers" | "trips">("drivers");
   const [q,          setQ]          = useState("");
   const [debouncedQ, setDebouncedQ] = useState("");
   const [showAdd,    setShowAdd]    = useState(false);
   const [confirmDel, setConfirmDel] = useState<{ kind: "driver" | "trip"; id: string | number } | null>(null);
-  const [totalPages, setTotalPages] = useState(1);
   const [tripPage, setTripPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState("");
 
@@ -46,7 +46,7 @@ function SearchPanel({ drivers, trips, onClose, onFindOnMap, onDeleteDriver, onA
 
   /* ── filtered lists ── */
   const filteredDrivers = drivers.filter(d => {
-    const matchesQuery = d.name.toLowerCase().includes(q.toLowerCase());
+    const matchesQuery = d.name.toLowerCase().includes(q.toLowerCase()) || d.phone_number?.toLowerCase().includes(q.toLowerCase())
     const matchesStatus = driverStatusFilter === "" || d.status === driverStatusFilter;
     return matchesQuery && matchesStatus;
   });
@@ -56,10 +56,6 @@ function SearchPanel({ drivers, trips, onClose, onFindOnMap, onDeleteDriver, onA
     (driverPage - 1) * 8,
     driverPage * 8
   )
-  // const filteredTrips = trips.filter(t =>
-  //   t.order_name.toLowerCase().includes(q.toLowerCase()) ||
-  //   t.driver_name.toLowerCase().includes(q.toLowerCase())
-  // );
 
   const resultCount = tab === "drivers" ? filteredDrivers.length : trips.length;
 
@@ -68,25 +64,27 @@ function SearchPanel({ drivers, trips, onClose, onFindOnMap, onDeleteDriver, onA
     onAddDriver(name,phone);
     setShowAdd(false);
   };
-  const handleDeleteDriver = (id: number) => {
+  const handleDeleteDriver = (id: number,name:string) => {
     if (confirmDel?.kind === "driver" && confirmDel.id === id) {
-      onDeleteDriver(id);
+      onDeleteDriver(id,name);
       setConfirmDel(null);
       setDriverPage(1);
     } else {
       setConfirmDel({ kind: "driver", id });
     }
   };
-  const handleDeleteTrip = (id: number) => {
+  const handleDeleteTrip = async(id: number,name:string) => {
     if (confirmDel?.kind === "trip" && confirmDel.id === id) {
-      onDeleteTrip(id);
-      setConfirmDel(null);
-      setTripPage(1);
+      try {
+      await onDeleteTrip(id, name);       
+    } catch (error) {
+      console.error("Deletion failed:", error);
+      await fetchTripsData(); 
+    }
     } else {
       setConfirmDel({ kind: "trip", id });
     }
   };
-
 
 const fetchTripsData = async () => {
   try {
@@ -120,7 +118,7 @@ useEffect(() => {
 useEffect(() => {
     setDriverPage(1);
   }, [driverStatusFilter, q]);
-// Reset page offset back to 1 if filter criteria changes mid-view
+
 const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
   setStatusFilter(e.target.value);
   setTripPage(1);
@@ -204,6 +202,7 @@ const handleDriverStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
               <option value="Completed">Completed</option>
               <option value="Failed">Failed</option>
               <option value="Pending">Pending</option>
+              <option value="Cancelled">Cancelled</option>
             </select>
           </div>
         )}
@@ -271,25 +270,25 @@ const handleDriverStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
                     {d.name}</div>
                 </div>
                 {/* Speed aligned to the absolute right side of the cell layout frame */}
-                <span className="text-slate-500 text-[10px] font-mono pr-1">{d.speed?.toFixed(4)} mph</span>
+                <span className="text-slate-500 text-[10px] font-mono pr-1">{d.speed?.toFixed(4)} km/h</span>
               </div>
             </td>
               <td style={TD_STYLE}>
-                <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-                    <div style={{ color: "#e2e8f0", fontWeight: 700, fontSize: 12 }}>{d.phone_number}</div>
+                <div className="flex items-center gap-2.5">
+                    <div className="text-slate-200 font-bold text-xs">{d.phone_number}</div>
                 </div>
               </td>
 
               {/* availability */}
               <td style={TD_STYLE}>
                 <span style={{ fontSize: 10, padding: "3px 9px", borderRadius: 20, fontWeight: 700, letterSpacing: "0.04em", ...AVAIL_STYLE[d.status] }}>
-                  <span style={{ marginRight: 5 }}>●</span>{d.status}
+                  <span className="mr-1">●</span>{d.status}
                 </span>
               </td>
 
               {/* actions */}
               <td style={TD_STYLE}>
-                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <div className="flex items-center gap-1">
                   {/* show position */}
                   <button
                     title="Show on map"
@@ -303,9 +302,9 @@ const handleDriverStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
 
                   {/* delete */}
                   {isConfirmingDel ? (
-                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                      <span style={{ fontSize: 10, color: "#f87171" }}>Confirm?</span>
-                      <button onClick={() => handleDeleteDriver(d.id)} style={{ ...ICON_BTN, color: "#f87171" }}
+                    <div className="flex items-center gap-1">
+                      <span className="text-[10px] text-red-400">Confirm?</span>
+                      <button onClick={() => handleDeleteDriver(d.id,d.name)} style={{ ...ICON_BTN, color: "#f87171" }}
                         onMouseEnter={e => (e.currentTarget.style.background = "rgba(239,68,68,0.15)")}
                         onMouseLeave={e => (e.currentTarget.style.background = "none")}>
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
@@ -318,10 +317,11 @@ const handleDriverStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
                     </div>
                   ) : (
                     <button
-                      title="Delete driver"
-                      onClick={() => handleDeleteDriver(d.id)}
-                      style={{ ...ICON_BTN, color: "#64748b" }}
-                      onMouseEnter={e => (e.currentTarget.style.background = "rgba(239,68,68,0.12)", (e.currentTarget as HTMLElement).style.color = "#f87171")}
+                      title= {d.status === "En Route" ? "Cant Delete En Route drivers" : "Delete driver"}
+                      onClick={() => handleDeleteDriver(d.id,d.name)}
+                      disabled={d.status === "En Route"}
+                      style={{ ...ICON_BTN, color:  "#64748b" }}
+                      onMouseEnter={e => (e.currentTarget.style.background = "rgba(239,68,68,0.12)", (e.currentTarget as HTMLElement).style.color = d.status ==="En Route" ? "#64748b" :"#f87171")}
                       onMouseLeave={e => (e.currentTarget.style.background = "none", (e.currentTarget as HTMLElement).style.color = "#64748b")}
                     >
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
@@ -333,7 +333,7 @@ const handleDriverStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
               );
             })}
             {filteredDrivers.length === 0 && (
-                  <tr><td colSpan={4} style={{ padding: 40, textAlign: "center", color: "#334155", fontSize: 13 }}>
+                  <tr><td colSpan={4} className="p-10 text-center text-slate-700 text-[13px]">
                     {q || driverStatusFilter ? "No drivers match filter criteria" : "No drivers registered"}
                   </td></tr>
                 )}
@@ -343,7 +343,7 @@ const handleDriverStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
 
       {/* ────── TRIPS TAB ────── */}
       {tab === "trips" && (
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+        <table className="w-full border-collapse text-xs">
           <thead>
             <tr>
               {["Order", "Driver", "Trip Status", "Date", "Duration", "Actions"].map(h => (
@@ -355,12 +355,13 @@ const handleDriverStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         {trips.map((t, i) => {
           const isConfirmingDel = confirmDel?.kind === "trip" && confirmDel.id === t.id;
           return (
-            <tr key={t.id} style={{ borderBottom: "1px solid rgba(51,65,85,0.18)", background: i % 2 === 0 ? "transparent" : "rgba(30,41,59,0.15)" ,margin:5}}>
+            <tr key={t.id}  className={`border-b border-slate-700/20
+               transition-colors ${i % 2 === 0 ?
+                "bg-transparent" : "bg-slate-800/15"}`}>
 
               {/* order */}
               <td style={TD_STYLE }>
-                <div style={{ color: "#e2e8f0", fontWeight: 700, fontFamily: "monospace", fontSize: 13 }}>
-                  <span style={{ color: "#334155", fontSize: 10, marginTop: 2 }}>#{String(t.id).slice(-6)}</span> 
+                <div className="text-slate-200 font-bold font-mono text-[13px]">
                   &nbsp;{t.order_name}</div>
               </td>
 
@@ -368,9 +369,10 @@ const handleDriverStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
               <td style={{ ...TD_STYLE, color: "#a5b4fc", fontWeight: 600 }}>{t.driver_name}</td>
 
               {/* trip status */}
-              <td style={TD_STYLE}>
+              <td style={TD_STYLE}>          
                 <span style={{ fontSize: 10, padding: "3px 9px", borderRadius: 20, fontWeight: 700, letterSpacing: "0.04em", ...TRIP_STATUS_STYLE[t.status] }}>
-                  {t.status === "Ongoing" && <span style={{ marginRight: 5 }}>◉</span>}
+                  {t.status === "Ongoing" && 
+                  <span className="mr-1">◉</span>}
                   {t.status}
                 </span>
               </td>
@@ -397,12 +399,17 @@ const handleDriverStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
 
               {/* actions */}
               <td style={TD_STYLE}>
-                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <div className="flex items-center gap-1">
               {/* show route */}
               <button
-                title="Show route on map"
+                title={
+                t.status === "Failed"
+                  ? "No route available for failed trips"
+                  : "Show route on map"
+                 }
                 onClick={() => { onShowRoute(t.id); onClose(); }}
-                style={{ ...ICON_BTN, color: "#60a5fa" }}
+                disabled={t.status === "Failed"}
+                style={{ ...ICON_BTN, color: t.status === "Failed" ? "#64748b" : "#60a5fa",}}
                 onMouseEnter={e => (e.currentTarget.style.background = "rgba(96,165,250,0.12)")}
                 onMouseLeave={e => (e.currentTarget.style.background = "none")}
               >
@@ -411,9 +418,10 @@ const handleDriverStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
 
               {/* delete */}
               {isConfirmingDel ? (
-                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                  <span style={{ fontSize: 10, color: "#f87171" }}>Confirm?</span>
-                  <button onClick={() => handleDeleteTrip(t.id)} style={{ ...ICON_BTN, color: "#f87171" }}
+                <div className="flex items-center gap-1">
+                  <span className="text-[10px] text-red-400">
+                    Confirm?</span>
+                  <button onClick={() => handleDeleteTrip(t.id,t.order_name)} style={{ ...ICON_BTN, color: "#f87171" }}
                     onMouseEnter={e => (e.currentTarget.style.background = "rgba(239,68,68,0.15)")}
                     onMouseLeave={e => (e.currentTarget.style.background = "none")}>
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
@@ -426,13 +434,21 @@ const handleDriverStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
                 </div>
               ) : (
                 <button
-                  title="Delete trip"
-                  onClick={() => handleDeleteTrip(t.id)}
+                  title={t.status === 'Ongoing' ? "Cancel trip" : "Delete trip"}
+                  onClick={() => t.status === 'Ongoing' ? 
+                    onCancelTrip(t.id) :
+                    handleDeleteTrip(t.id,t.order_name)}
                   style={{ ...ICON_BTN, color: "#64748b" }}
                   onMouseEnter={e => (e.currentTarget.style.background = "rgba(239,68,68,0.12)", (e.currentTarget as HTMLElement).style.color = "#f87171")}
                   onMouseLeave={e => (e.currentTarget.style.background = "none", (e.currentTarget as HTMLElement).style.color = "#64748b")}
                 >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                  {t.status === 'Ongoing' ? (
+      // Cancel Icon (Example: a stop/ban circle)
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+    ) : (
+      // Delete Icon (Existing Trash)
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+    )}
                 </button>
                   )}
                 </div>
@@ -441,7 +457,7 @@ const handleDriverStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
           );
         })}
             {trips.length === 0 && (
-                  <tr><td colSpan={6} style={{ padding: 40, textAlign: "center", color: "#334155", fontSize: 13 }}>
+                  <tr><td colSpan={6} className="p-10 text-center text-slate-700 text-[13px]">
                     {q || statusFilter ? "No trips match filter criteria" : "No trips recorded yet"}
                   </td></tr>
                 )}
@@ -450,16 +466,11 @@ const handleDriverStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
       )}
       </div>
       {tab === "drivers" && totalDriverPages > 1 && (
-          <div style={{
-            padding: "8px 14px", borderTop: "1px solid rgba(51,65,85,0.4)",
-            background: "rgba(15,23,42,0.6)", display: "flex",
-            alignItems: "center", justifyContent: "space-between",
-             flexShrink: 0,
-          }}>
-            <span style={{ fontSize: 11, color: "#64748b", fontFamily: "monospace" }}>
+          <div className="flex flex-shrink-0 items-center justify-between border-t border-slate-700/40 bg-slate-900/60 px-3.5 py-2">
+            <span className="font-mono text-[11px] text-slate-500">
               Page {driverPage} of {totalDriverPages}
             </span>
-            <div style={{ display: "flex", gap: 6 }}>
+            <div className="flex gap-1.5">
               <button
                 disabled={driverPage === 1}
                 onClick={() => setDriverPage(prev => Math.max(1, prev - 1))}
@@ -488,21 +499,12 @@ const handleDriverStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
           </div>
         )}
       {tab === "trips" && totalPages > 1 && (
-      <div style={{
-        padding: "8px 14px",
-        borderTop: "1px solid rgba(51,65,85,0.4)",
-        background: "rgba(15,23,42,0.6)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        flexShrink: 0,
-        bottom:0,
-      }}>
-        <span style={{ fontSize: 11, color: "#64748b", fontFamily: "monospace" }}>
+      <div className="flex flex-shrink-0 items-center justify-between border-t border-slate-700/40 bg-slate-900/60 px-3.5 py-2">
+        <span className="font-mono text-[11px] text-slate-500">
           Page {tripPage} of {totalPages}
         </span>
         
-        <div style={{ display: "flex", gap: 6 }}>
+        <div className="flex gap-1.5">
           <button
             disabled={tripPage === 1}
             onClick={() => setTripPage(prev => Math.max(1, prev - 1))}

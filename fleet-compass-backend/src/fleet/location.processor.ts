@@ -1,7 +1,8 @@
 import { Processor, WorkerHost ,InjectQueue} from '@nestjs/bullmq';
 import { Job ,Queue} from 'bullmq';
-import {Injectable, OnModuleDestroy,OnModuleInit } from '@nestjs/common';
+import {Injectable,Inject } from '@nestjs/common';
 import { FleetEventsService } from './fleet-events.service';
+import Redis from 'ioredis';
 import { DatabaseService } from 'src/database/database.service';
 @Processor('locationIngestion',{concurrency: 50})
 @Injectable()
@@ -11,7 +12,10 @@ export class locationIngestion extends WorkerHost{
   constructor(
     private readonly fleetEventsService: FleetEventsService,
     private readonly databaseService:DatabaseService,
-    @InjectQueue('locationIngestion') private readonly locationQueue: Queue
+    @InjectQueue('locationIngestion') 
+    private readonly locationQueue: Queue,
+    @Inject('REDIS_CLIENT')
+    private readonly redisClient: Redis, 
   ) {
     super();
   }
@@ -22,11 +26,42 @@ export class locationIngestion extends WorkerHost{
     const {tripId,driverId,route,orderName, userId, pointIndex = 0, previousPoint = null, previousTimestamp = Date.now()} = job.data;
     if (!route || pointIndex >= route.length) return;
     console.log(`Processing tripId: ${tripId}, pointIndex: ${pointIndex}`);
-    console.log('route length:', route?.length);
     const point = route[pointIndex];
     const longitude = point[0];
     const latitude = point[1];
     let speed = 0;
+    const isCancelled = await this.redisClient.get(`trip_cancel:${tripId}`);
+    
+    if (isCancelled) {
+        console.log(`Job for trip ${tripId} aborted.`);
+          await this.databaseService.pool.query(
+    `UPDATE trips SET status = 'Cancelled' WHERE id = $1`, [tripId]
+  );
+  await this.databaseService.pool.query(
+    `UPDATE drivers SET status = 'Idle' WHERE id = $1`, [driverId]
+  );
+  await this.databaseService.pool.query(
+        `INSERT INTO driver_locations
+        (driver_id, position, updated_at)
+        VALUES ($1,
+          ST_SetSRID(ST_MakePoint($2, $3), 4326)::geography,
+          NOW())
+        ON CONFLICT (driver_id)
+        DO UPDATE SET
+          position = EXCLUDED.position,
+          updated_at = NOW()
+        `,
+        [driverId,longitude, latitude],
+       );
+
+       this.fleetEventsService.emitToRoom(`user:${userId}`, 'tripCancelled', {
+        tripId,
+        driverId,
+        orderName,
+        message: 'The trip has been cancelled by the operator.'
+        });
+        return; 
+    }
     try {
       if (pointIndex === 0) {
         console.log(`[Lifecycle] Activating Trip ${tripId} state to Ongoing...`);
@@ -69,6 +104,7 @@ if (pointIndex < route.length - 1) {
           tripId,
           driverId,
           route,
+          orderName,
           userId,
           pointIndex: pointIndex + 1,
           previousPoint: point,
@@ -87,24 +123,21 @@ if (pointIndex < route.length - 1) {
           `UPDATE trips SET status = 'Completed', ended_at = $2, duration_seconds = EXTRACT(EPOCH FROM ($2 - started_at)) WHERE id = $1`,
           [tripId, endedAt]
         );
-        await this.databaseService.pool.query(
+         await this.databaseService.pool.query(
         `INSERT INTO driver_locations
-        (driver_id, trip_id, position, speed, updated_at)
-        VALUES ($1,$2,
-          ST_SetSRID(ST_MakePoint($3, $4), 4326)::geography,$5,
+        (driver_id, position, updated_at)
+        VALUES ($1,
+          ST_SetSRID(ST_MakePoint($2, $3), 4326)::geography,
           NOW())
         ON CONFLICT (driver_id)
         DO UPDATE SET
-          trip_id = EXCLUDED.trip_id,
           position = EXCLUDED.position,
-          speed = EXCLUDED.speed,
           updated_at = NOW()
         `,
-        [driverId, tripId, longitude, latitude, speed],
+        [driverId,longitude, latitude],
        );
     
         await this.databaseService.pool.query(`UPDATE drivers SET status='Idle' WHERE id=$1`, [driverId]);
-        await this.databaseService.pool.query(`UPDATE driver_locations SET trip_id = NULL, speed = 0 WHERE driver_id = $1`, [driverId]);
 
         this.fleetEventsService.emitToRoom(`user:${userId}`,'tripCompleted', {
           tripId,
@@ -116,13 +149,19 @@ if (pointIndex < route.length - 1) {
 
  } catch (error) {
       try {
-    await this.databaseService.pool.query(
-      `INSERT INTO driver_locations (driver_id, trip_id, position, speed, updated_at)
-       VALUES ($1, $2, ST_SetSRID(ST_MakePoint($3, $4), 4326)::geography, $5, NOW())
-       ON CONFLICT (driver_id)
-       DO UPDATE SET position = EXCLUDED.position, speed = 0, updated_at = NOW()`,
-      [driverId, tripId, longitude, latitude, 0]
-    );
+     await this.databaseService.pool.query(
+        `INSERT INTO driver_locations
+        (driver_id, position, updated_at)
+        VALUES ($1,
+          ST_SetSRID(ST_MakePoint($2, $3), 4326)::geography,
+          NOW())
+        ON CONFLICT (driver_id)
+        DO UPDATE SET
+          position = EXCLUDED.position,
+          updated_at = NOW()
+        `,
+        [driverId,longitude, latitude],
+       );
     await this.databaseService.pool.query(`UPDATE trips SET status = 'Failed' WHERE id = $1`, [tripId]);
     await this.databaseService.pool.query(`UPDATE drivers SET status = 'Idle' WHERE id = $1`, [driverId]);
     

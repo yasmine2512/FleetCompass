@@ -48,7 +48,6 @@ const STATUS_COLORS: Record<Status, string> = {
   "Offline": "#f59e0b",
 };
 
-// Helper function to build fresh popup HTML strings using the absolute latest state variables
 function getDriverPopupHtml(driver: Driver): string {
   const color = STATUS_COLORS[driver.status] ?? "#fff";
   return `
@@ -58,7 +57,7 @@ function getDriverPopupHtml(driver: Driver): string {
         ${driver.name}
       </h3>
       <div class="stat-row"><span>Status</span><span class="status-badge">${driver.status}</span></div>
-      <div class="stat-row"><span>Speed</span><span class="stat-val">${driver.speed?.toFixed(2) ?? "0.00"} mph</span></div>
+      <div class="stat-row"><span>Speed</span><span class="stat-val">${driver.speed?.toFixed(2) ?? "0.00"} km/h</span></div>
       <div class="stat-row"><span>Order</span><span class="stat-val">${driver.currentTrip?.orderName ?? "No active order"}</span></div>
       <div class="stat-row"><span>Lat / Lng</span><span class="stat-val">${driver.lat?.toFixed(4)}, ${driver.lng?.toFixed(4)}</span></div>
       <div class="stat-row"><span>Signal</span><span class="stat-val" style="color:#4ade80;">Strong</span></div>
@@ -75,6 +74,16 @@ function LeafletMap({ drivers, onAddLog, wizard, onMapClick, onFocusDriver, setD
   const startMarkerRef = useRef<L.Marker | null>(null);
   const endMarkerRef = useRef<L.Marker | null>(null);
   const routeRef = useRef<L.Polyline | null>(null);
+
+
+  const DefaultIcon = L.icon({
+  iconUrl: '/marker-icon.png',        
+  shadowUrl: '/marker-shadow.png',    
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+});
+
+L.Marker.prototype.options.icon = DefaultIcon;
 
   /* ── Smooth Camera FlyTo Target Sync ── */
   useEffect(() => {

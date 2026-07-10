@@ -33,6 +33,11 @@ export class FleetController {
         return this.fleetService.findOne(+id,req.user!.id);
     }
 
+    @Post(':tripId/cancel')
+    cancelTrip(@Param('tripId') tripId: string) {
+        return this.fleetService.cancel(+tripId);
+    }
+
     @Delete(':id')
     remove(@Param('id') id: string,@Req() req: Request) {
         return this.fleetService.remove(+id,req.user!.id);

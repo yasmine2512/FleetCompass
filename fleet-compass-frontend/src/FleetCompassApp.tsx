@@ -18,11 +18,12 @@ function nowHHMMSS() {
 }
 
 let logSeq = 0;
-function FleetCompassApp() {
+function FleetCompassApp() {  
   const navigate = useNavigate();
   const [user,setUser] = useState<UserMetadata>({user_metadata:{},email:""});
   const [drivers,      setDrivers]      = useState<Driver[]>([]);
   const [trips,        setTrips]        = useState<Trip[]>([]);
+  const [totalPages, setTotalPages] = useState(1);
   const [totalTripsCount, setTotalTripsCount] = useState(0);
   const [chartData,    setChartData]    = useState<number[]>(() => new Array(30).fill(0));
   const [kpi,          setKpi]          = useState<KPI>({ activeDrivers: 0, 
@@ -67,7 +68,7 @@ useEffect(() => {
     phone_number: rawDriver.phone_number,
     lat: rawDriver.lat,
     lng: rawDriver.lng,
-    speed: rawDriver.speed,
+    speed:0,
     status: rawDriver.status,
     currentTrip: rawDriver.trip_id 
       ? {id: rawDriver.trip_id,
@@ -78,6 +79,7 @@ useEffect(() => {
       setDrivers(structuredDrivers);
       setTrips(tripsRes.data.data);
       setTotalTripsCount(tripsRes.data.pagination.totalRecords);
+      setTotalPages(tripsRes.data.pagination.totalPages);
     } catch (err) {
       console.log(err);
       navigate("/");
@@ -190,16 +192,20 @@ useEffect(() => {
     console.error("Socket error:", data.message);
     pushLog(`[ERROR] ${data.message}`, "warn");
     if (data.driverId) {
-    setDrivers(prev =>
-      prev.map(d =>
-        d.id === data.driverId
-          ? { ...d, status: "Idle", speed: 0, currentTrip: undefined }
-          : d
-      )
-    );
+    setDrivers((prev: Driver[]) => {
+    const updatedDrivers: Driver[] = prev.map(d =>
+      d.id === data.driverId
+        ? { ...d, status: "Idle", speed: 0, currentTrip: undefined } 
+        : d);
+    const activeDrivers = updatedDrivers.filter(d => d.status === "En Route");
+    if (activeDrivers.length === 0) {
+      setKpi(prevKpi => ({ ...prevKpi, avgSpeed: 0 }));
+    }
+    return updatedDrivers;
+  });
   }
   if (data.tripId) {
-    setTrips(prev =>prev.map(t =>
+    setTrips(prev => prev.map(t =>
          t.id === data.tripId
           ? { ...t, status: "Failed" }
           : t
@@ -207,6 +213,23 @@ useEffect(() => {
     );
   }
   };
+  const handleCancelTrip =(data:any)=>{
+    setTrips(prev => prev.map(t => t.id === data.tripId ?
+      {...t, status: "Cancelled" }:t
+    ));
+    setDrivers((prev: Driver[]) => {
+    const updatedDrivers: Driver[] = prev.map(d =>
+      d.id === data.driverId
+        ? { ...d, status: "Idle", speed: 0, currentTrip: undefined } 
+        : d);
+    const activeDrivers = updatedDrivers.filter(d => d.status === "En Route");
+    if (activeDrivers.length === 0) {
+      setKpi(prevKpi => ({ ...prevKpi, avgSpeed: 0 }));
+    }
+    return updatedDrivers;
+  });
+    pushLog(`Order ${data.orderName} Canceled`,"normal");
+  }
 
   socket.on("connect", handleConnect);
   socket.on("driverCreated", handleDriverCreated);
@@ -214,6 +237,7 @@ useEffect(() => {
   socket.on("tripStarted", handleTripStarted);
   socket.on("locationUpdate", handleLocationUpdate);
   socket.on("tripCompleted", handleTripCompleted);
+  socket.on("tripCancelled",handleCancelTrip)
   socket.on("error", handleSocketError);
   const intervalId = setInterval(() => {
       const totalPings = pingsThisSecondRef.current;
@@ -231,6 +255,7 @@ useEffect(() => {
     socket.off("tripStarted", handleTripStarted);
     socket.off("locationUpdate", handleLocationUpdate);
     socket.off("tripCompleted", handleTripCompleted);
+    socket.off("tripCancelled",handleCancelTrip)
     socket.off("error", handleSocketError);
     clearInterval(intervalId);
     socket.disconnect();
@@ -279,11 +304,6 @@ useEffect(() => {
       }
       if (wizard.step === "assign") return;
       setDispatchPopup({ lat, lng });
-      // pushLog(`[DISPATCH] New task created at ${lat.toFixed(5)}, ${lng.toFixed(5)}`, "dispatch");
-      //  pushLog(`[DISPATCH] new warn`, "warn");
-      //  pushLog(`[DISPATCH] new dim`, "dim");
-      //  pushLog(`[DISPATCH] new normal`, "normal");
-      //  pushLog(`[DISPATCH] new info`, "info");
     }, [wizard.step, pushLog]);
   
     /* ── driver focus (from search "Find on map" or driver click) ── */
@@ -345,19 +365,25 @@ useEffect(() => {
     pushLog("Couldn't load route", "warn");
   }
 };
+const cancelTrip= async (tripId:number)=>{
+  try{
+  await fleetApi.cancelTrip(tripId);
+  }catch(error){
+    console.log(error);
+    pushLog("Couldn't Cancel Order","warn");
+  }
+}
 
-const DeleteDriver = (driverId:number) =>{
+const DeleteDriver = (driverId:number,name:string) => {
 try {
     fleetApi.deleteDriver(driverId);
     setDrivers(prev => prev.filter(d => d.id !== driverId));
-    pushLog("Driver deleted", "normal");
+    pushLog( `Driver ${name} deleted`, "normal");
   } catch (err) {
     pushLog("Couldn't delete driver", "warn");
   }
 }
-const AddDriver = (name: string,phone:string) =>{
-  // fleetApi.createDriver(name,phone);
-  // pushLog('[Drivers] Created new Driver',"info");
+const AddDriver = (name: string,phone:string) => {
   socket.emit('AddDriver', { 
     name: name, 
     phone: phone 
@@ -370,17 +396,17 @@ const AddDriver = (name: string,phone:string) =>{
     }
   });
 }
-const DeleteTrip = (tripId:number) =>{
+const DeleteTrip = (tripId:number,name:string) => {
 try {
-    fleetApi.deleteDriver(tripId);
+    fleetApi.deleteTrip(tripId);
     setTrips(prev => prev.filter(d => d.id !== tripId));
-
-    pushLog("Order deleted", "normal");
+    pushLog( `Order ${name} deleted`, "normal");
   } catch (err) {
     pushLog("Couldn't delete Order", "warn");
   }
 }
-const getRoute = async(tripId: number) =>{
+
+const getRoute = async(tripId: number) => {
 const res = await fleetApi.getRoute(tripId);
 return res.data;
 }
@@ -418,39 +444,31 @@ const handleSaveSettings = async() => {
     settingsForm.fullName!,
     settingsForm.fleet!
   );
-    console.log("Profile updated:", response.data);
-    alert("Configuration saved successfully!");
+  pushLog("Profile updated");
     const currentFullName = response.data.user.user_metadata.fullName;
-const currentFleet = response.data.user.user_metadata.fleet;
-console.log(currentFleet,currentFullName)
-    setShowSettings(false);
-
+    const currentFleet = response.data.user.user_metadata.fleet;
+    console.log(currentFleet,currentFullName);
+    return response.data;
   } catch (error: any) {
     console.error("Failed to update metadata:", error);
-    if (error.response && error.response.data) {
-      alert(`Error updating settings: ${error.response.data.message}`);
-    } else {
-      alert("Network error. Unable to save settings.");
-    }
+    throw error.response?.data?.message || "Failed to save settings.";
   }
 };
 
 // Mock account deletion handler
 const handleDeleteAccount = async() => {
-  if (confirm("Are you absolutely sure you want to delete your account? This action cannot be undone.")) {
     try {
     console.log("Deleting account permanently...");
   const response = await fleetApi.deleteAccount();
   if (response.data?.success || response.status === 200 || response.status === 204) {
-        alert("Your profile network context has been successfully terminated.");
         navigate("/");
+        return true;
       }
     }catch(error : any){
       console.error("Account erasure failed:", error);
-      const serverMessage = error.response?.data?.message || 'Failed to destroy profile context.';
-      alert(serverMessage);
+      throw error.response?.data?.message || "Failed to destroy profile context.";
     }
-  }
+  
 };
 
 const getFleetStatusColor = (percentage: number) => {
@@ -491,10 +509,9 @@ const getSpeedColor = (speed: number) => {
         <div className="pt-5 px-5 flex-shrink-0">
           {/* Settings Button (Top-Right Viewport Alignment) */}
     <button 
-      onClick={() => setShowSettings(true)}
+      onClick={ () => setShowSettings(true)}
       title="System Settings"
-      className="absolute top-5 right-5 p-2 rounded-lg border border-slate-700/50 bg-slate-800/40 text-slate-400 hover:text-slate-200 hover:bg-slate-800/80 hover:border-indigo-500/30 transition-all duration-200 cursor-pointer"
-    >
+      className="absolute top-5 right-5 p-2 rounded-lg border border-slate-700/50 bg-slate-800/40 text-slate-400 hover:text-slate-200 hover:bg-slate-800/80 hover:border-indigo-500/30 transition-all duration-200 cursor-pointer">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="12" r="3"/>
         <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
@@ -524,13 +541,13 @@ const getSpeedColor = (speed: number) => {
           <div className="flex gap-2 mb-3">
             <KpiCard label="Active Fleet"
              value={kpi.activeDrivers}     sub="En Route" 
-             valueColor={kpi.activeDrivers > 0 ? "#10b981" : "#475569"}/>
+             valueColor={ kpi.activeDrivers > 0 ? "#10b981" : "#475569"} />
             <KpiCard label="Fleet Status"   
             value={`${kpi.fleetStatus} %`}
               sub="% Active" 
               valueColor={getFleetStatusColor(kpi.activeDrivers)} />
             <KpiCard label="Avg Speed "  value={kpi.avgSpeed}      
-             sub="km/h Avg" valueColor={getSpeedColor(kpi.avgSpeed)} />
+             sub="EMA" valueColor={getSpeedColor(kpi.avgSpeed)} />
           </div>
         </div>
 
@@ -552,7 +569,7 @@ const getSpeedColor = (speed: number) => {
         </div>
       </div>
 
-      <TopBar onSearch={() => setShowSearch(true)} onLogout={() => handleLogout()} />
+      <TopBar onSearch={ () => setShowSearch(true)} onLogout={() => handleLogout()} />
 
 
       {/* ── Map ── */}
@@ -568,17 +585,17 @@ const getSpeedColor = (speed: number) => {
        flyToDriver={focusDriver} />
 
        {/* ── Dispatch popup (non-wizard) ── */}
-      {dispatchPopup && wizard.step === "idle" && (
+      {dispatchPopup && wizard.step === "idle" && ( 
         <DispatchPopup
           lat={dispatchPopup.lat}
           lng={dispatchPopup.lng}
           onClose={() => setDispatchPopup(null)}
           onStartTrip={handleStartTrip}
-        />
+        /> 
       )}
 
       {/* ── Trip wizard ── */}
-      {wizard.step !== "idle" && (
+      {wizard.step !== "idle" && ( 
         <TripWizardOverlay
           wizard={wizard}
           drivers={drivers}
@@ -586,8 +603,8 @@ const getSpeedColor = (speed: number) => {
           onAssignDriver={id => setWizard(w => ({ ...w, assignedDriverId: id }))}
           onConfirm={handleConfirmTrip}
           onCancel={handleCancelWizard}
-        />
-      )}
+          />
+      ) }
 
       {/* crosshair hint banner */}
       {wizard.step === "pick-destination" && (
@@ -606,7 +623,7 @@ const getSpeedColor = (speed: number) => {
       )}
 
       {/* ── Search panel ── */}
-      {showSearch && (
+      {showSearch && ( 
         <SearchPanel
           drivers={drivers}
           trips={trips}
@@ -616,13 +633,16 @@ const getSpeedColor = (speed: number) => {
           onAddDriver= {AddDriver}
           onDeleteTrip={DeleteTrip}
           onShowRoute ={showRoute}
+          onCancelTrip={cancelTrip}
           onSetTrips ={(trip:Trip[]) => setTrips(trip)}
           totalTripsCount={totalTripsCount}
-          setCount={(n:number)=>setTotalTripsCount(n)}
+          setCount={(n:number)=> setTotalTripsCount(n)}
+          totalPages={totalPages}
+          setTotalPages={p=> setTotalPages(p)}
         />
-      )}
+      ) }
 
-      {showSettings &&(
+      {showSettings && (
         <Settings 
         onClose={() => setShowSettings(false)}
         setSettingsForm={setSettingsForm}
@@ -630,9 +650,9 @@ const getSpeedColor = (speed: number) => {
         handleSaveSettings={handleSaveSettings}
         handleDeleteAccount={handleDeleteAccount}
         />
-      )}
+       ) }
 
     </>
-  );
-}
+  ); 
+} 
 export default FleetCompassApp

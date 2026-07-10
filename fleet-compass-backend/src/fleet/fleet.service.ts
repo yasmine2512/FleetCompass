@@ -1,4 +1,4 @@
-import { Injectable ,UnauthorizedException ,NotFoundException } from '@nestjs/common';
+import { Injectable ,Inject,UnauthorizedException ,NotFoundException } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { Socket } from 'socket.io';
@@ -6,16 +6,17 @@ import axios from 'axios';
 import { CreateFleetDto } from './dto/create-fleet.dto';
 import { DatabaseService } from 'src/database/database.service';
 import { FleetEventsService } from './fleet-events.service';
+import Redis from 'ioredis';
 @Injectable()
 export class FleetService {
 
   constructor(
     private readonly databaseService:DatabaseService ,
     private readonly fleetEventsService: FleetEventsService,
-    @InjectQueue('locationIngestion')
-    private readonly locationQueue: Queue,
     @InjectQueue('routeIngestion')
-    private readonly routeQueue: Queue,    
+    private readonly routeQueue: Queue,  
+    @Inject('REDIS_CLIENT')
+    private readonly redisClient: Redis,  
   ) {
   }
 
@@ -142,6 +143,11 @@ async findAll(userId: string, page: number = 1, limit: number = 8,
   };
 }
 
+  async cancel(tripId:number){
+  await this.redisClient.set(`trip_cancel:${tripId}`, 'true', 'EX', 3600);
+  return { message: 'Cancellation signal sent' };
+  }
+
 
   async remove(id: number,userId:string) {
     const result = await this.databaseService.pool.query(
@@ -201,11 +207,10 @@ async findAll(userId: string, page: number = 1, limit: number = 8,
     const lng = -74.0060 + (Math.random() - 0.5) * 0.05;
     await client.query(
       `
-      INSERT INTO driver_locations (driver_id, position, speed)
+      INSERT INTO driver_locations (driver_id, position)
       VALUES (
         $1,
-        ST_SetSRID(ST_MakePoint($2, $3), 4326)::geography,
-        0
+        ST_SetSRID(ST_MakePoint($2, $3), 4326)::geography
       )`,
       [driver.id, lng, lat]
     );
@@ -231,7 +236,6 @@ async findAll(userId: string, page: number = 1, limit: number = 8,
 
     ST_Y(dl.position::geometry) AS lat,
     ST_X(dl.position::geometry) AS lng,
-    COALESCE(dl.speed, 0) AS speed,
 
     t.trip_id,
     t.order_name,
@@ -241,8 +245,7 @@ async findAll(userId: string, page: number = 1, limit: number = 8,
 
     LEFT JOIN LATERAL (
         SELECT
-            position,
-            speed
+            position
         FROM driver_locations
         WHERE driver_id = d.id
         ORDER BY created_at DESC
