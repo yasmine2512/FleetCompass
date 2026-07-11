@@ -396,11 +396,15 @@ const AddDriver = (name: string,phone:string) => {
     }
   });
 }
-const DeleteTrip = (tripId:number,name:string) => {
+const DeleteTrip = async(tripId:number,name:string) => {
 try {
-    fleetApi.deleteTrip(tripId);
-    setTrips(prev => prev.filter(d => d.id !== tripId));
-    pushLog( `Order ${name} deleted`, "normal");
+    const res =await fleetApi.deleteTrip(tripId);
+    if(res.data){
+      setTrips(prev => prev.filter(d => d.id !== tripId));
+      pushLog( `Order ${name} deleted`, "normal");
+      return res.data;
+    }
+
   } catch (err) {
     pushLog("Couldn't delete Order", "warn");
   }

@@ -76,7 +76,11 @@ function SearchPanel({ drivers, trips, onClose, onFindOnMap, onDeleteDriver, onA
   const handleDeleteTrip = async(id: number,name:string) => {
     if (confirmDel?.kind === "trip" && confirmDel.id === id) {
       try {
-      await onDeleteTrip(id, name);       
+      const res = await onDeleteTrip(id, name);    
+      if(res!){
+        await fetchTripsData;
+        setTripPage(1);
+      }   
     } catch (error) {
       console.error("Deletion failed:", error);
       await fetchTripsData(); 
