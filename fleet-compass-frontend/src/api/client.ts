@@ -3,7 +3,7 @@ import { io } from "socket.io-client";
 
 const baseURL =import.meta.env.VITE_API_URL;
 export const api = axios.create({
-  baseURL: baseURL,
+  baseURL:  `${baseURL}/api`,
   withCredentials: true,
 });
 
@@ -47,7 +47,7 @@ export const fleetApi = {
         email:email,password:password}),
 };
 
-export const socket = io("/", {
+export const socket = io(baseURL, {
   withCredentials: true,
   autoConnect: false,
 });
