@@ -32,7 +32,7 @@ export const fleetApi = {
       'Content-Type': 'application/json',
     },
   }),
-  handleOAuth:()=> window.location.href = `${baseURL}/user/oauth`,
+  handleOAuth:()=> window.location.href = `${baseURL}/api/user/oauth`,
   resetPassword:(email:string)=>api.post('/user/reset-password',{ email }),
   setSession:(accessToken?:string,refreshToken?:string)=> 
     api.post('/user/set-session', {

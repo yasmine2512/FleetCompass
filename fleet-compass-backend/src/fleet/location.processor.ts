@@ -25,7 +25,6 @@ export class locationIngestion extends WorkerHost{
 
     const {tripId,driverId,route,orderName, userId, pointIndex = 0, previousPoint = null, previousTimestamp = Date.now()} = job.data;
     if (!route || pointIndex >= route.length) return;
-    console.log(`Processing tripId: ${tripId}, pointIndex: ${pointIndex}`);
     const point = route[pointIndex];
     const longitude = point[0];
     const latitude = point[1];
@@ -33,7 +32,6 @@ export class locationIngestion extends WorkerHost{
     const isCancelled = await this.redisClient.get(`trip_cancel:${tripId}`);
     
     if (isCancelled) {
-        console.log(`Job for trip ${tripId} aborted.`);
           await this.databaseService.pool.query(
     `UPDATE trips SET status = 'Cancelled' WHERE id = $1`, [tripId]
   );
@@ -64,7 +62,6 @@ export class locationIngestion extends WorkerHost{
     }
     try {
       if (pointIndex === 0) {
-        console.log(`[Lifecycle] Activating Trip ${tripId} state to Ongoing...`);
         await this.databaseService.pool.query(
           `UPDATE trips SET status = 'Ongoing' WHERE id = $1`,
           [tripId]
@@ -116,7 +113,6 @@ if (pointIndex < route.length - 1) {
         });
 
       } else {
-        console.log(`Trip ${tripId} has reached its final destination!`);
         const endedAt = new Date();
         
         await this.databaseService.pool.query(

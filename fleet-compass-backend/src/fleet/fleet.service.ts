@@ -75,7 +75,6 @@ export class FleetService {
       });
     } catch (error) {
       console.error(error);
-
       this.fleetEventsService.emitToRoom(`user:${id}`,'error', {
         message: 'Failed to start trip',
       });
@@ -198,7 +197,7 @@ async findAll(userId: string, page: number = 1, limit: number = 8,
       `
       INSERT INTO drivers (name,phone_number, status, user_id)
       VALUES ($1,$2,'Idle', $3)
-      RETURNING id, name, status
+      RETURNING id, name,phone_number, status
       `,
       [name,phone, user_id]
     );

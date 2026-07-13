@@ -52,11 +52,7 @@ useEffect(() => {
         return;
       }
       const user = userRes.data;
-      console.log(user);
       setUser(user);
-      const metadata = user?.user_metadata || {};
-      const fullName = metadata.full_name || 'No Name Found';
-      console.log(fullName);
       const [driversRes, tripsRes] = await Promise.all([
         fleetApi.getDrivers(),
         fleetApi.getTrips(1,8,""),
@@ -101,7 +97,6 @@ useEffect(() => {
   };
 
   const handleDriverCreated = (data: any) => {
-    console.log("hit handleDriverCreated");
     setDrivers(prev => {
       if (prev.some(d => d.id === data.driver.id)) return prev;
       return [...prev, { ...data.driver, lat: data.lat, lng: data.lng, currentTrip: null, speed: 0 }];
@@ -110,7 +105,6 @@ useEffect(() => {
   };
 
   const handleTripRequested = (data: any) => {
-    console.log("hit handleTripRequested");
     setTrips(prev => [
       ...prev,
       {
@@ -121,8 +115,6 @@ useEffect(() => {
   };
 
   const handleTripStarted = (data: any) => {
-    console.log("hit handleTripStarted");
-    console.log("started:",data.orderName);
     const { tripId, driverId, orderName } = data;
     setTrips(prev =>
       prev.map(t =>
@@ -357,7 +349,6 @@ useEffect(() => {
     const showRoute = async (tripId: number) => {
    try {
     const data = await getRoute(tripId);
-    console.log(data);
     setRouteCoordinates(data);
   
   } catch(err){
@@ -389,7 +380,6 @@ const AddDriver = (name: string,phone:string) => {
     phone: phone 
   }, (response:any) => {
     if (response?.success) {
-      console.log("Driver saved and initialized via Socket message stream!");
       pushLog('[Drivers] Created new Driver',"info");
     }else{
       pushLog('[Drivers] Failed to Create new Driver',"info");
@@ -442,16 +432,12 @@ useEffect(() => {
 }, [user]);
 
 const handleSaveSettings = async() => {
-  console.log("Saving profile changes...", settingsForm);
   try {
     const response = await fleetApi.updateProfile(
     settingsForm.fullName!,
     settingsForm.fleet!
   );
-  pushLog("Profile updated");
-    const currentFullName = response.data.user.user_metadata.fullName;
-    const currentFleet = response.data.user.user_metadata.fleet;
-    console.log(currentFleet,currentFullName);
+  pushLog("Profile updated","normal");
     return response.data;
   } catch (error: any) {
     console.error("Failed to update metadata:", error);
@@ -462,7 +448,6 @@ const handleSaveSettings = async() => {
 // Mock account deletion handler
 const handleDeleteAccount = async() => {
     try {
-    console.log("Deleting account permanently...");
   const response = await fleetApi.deleteAccount();
   if (response.data?.success || response.status === 200 || response.status === 204) {
         navigate("/");

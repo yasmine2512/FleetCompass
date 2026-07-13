@@ -27,7 +27,6 @@ export class RouteProcessor extends WorkerHost {
 
   async process(job: Job<any>): Promise<any> {
     const {id, driverId, orderName, coordinates } = job.data;
-      console.log('NEW TRIP Requested');
     let tripId: number | null = null;
     try {
       const route = await this.fleetService.getRoute(coordinates);
@@ -50,7 +49,6 @@ export class RouteProcessor extends WorkerHost {
     ]
   );
       const tripId = tripResult.rows[0].id;
-      console.log("trip Requested");
       this.fleetEventsService.emitToRoom(`user:${id}`,'tripRequested', { tripId, status: 'Pending' });
 
       await this.databaseService.pool.query(
@@ -68,8 +66,6 @@ export class RouteProcessor extends WorkerHost {
         removeOnComplete: true,
         removeOnFail: true,
       });
-
-      console.log(`Successfully throttled and activated route for trip: ${tripId}`);
 
     } catch (err : any) {
       console.error("Error starting trip:", err.message || err);

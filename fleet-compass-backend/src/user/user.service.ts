@@ -92,6 +92,7 @@ const { data: userData, error: createError } = await this.databaseService.supaba
 
   if (linkError) {
     await this.databaseService.supabase.auth.admin.deleteUser(userData.user.id);
+    console.error("SMTP ERROR:", linkError);
     throw new BadRequestException(linkError.message);
   }
      try {
@@ -125,7 +126,7 @@ const { data: userData, error: createError } = await this.databaseService.supaba
       });
     } catch (emailError) {
       await this.databaseService.supabase.auth.admin.deleteUser(userData.user.id);
-      console.error('Nodemailer SMTP Error:', emailError);
+      console.error('Nodemailer SMTP Error:', JSON.stringify(emailError, null, 2));
       throw new BadRequestException('Delivery failed. Email invalid.');
     }
 

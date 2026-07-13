@@ -71,8 +71,7 @@ export default function FleetCompassAuth() {
 const handleLogin = async () => {
    setErrors({});
   try {
-    const response = await fleetApi.login(form.email,form.password);
-    console.log(response.data);
+    await fleetApi.login(form.email,form.password);
     navigate("/App");
     
   } catch (error : any) {
@@ -88,9 +87,7 @@ const handleLogin = async () => {
 const handleSignup = async () => {
   setErrors({});
   try {
-    const response = await 
-    fleetApi.signup(form.name,form.fleet,form.email,form.password);
-    console.log(response.data);
+  await fleetApi.signup(form.name,form.fleet,form.email,form.password);
     setSuccess(true);
     
   } catch (error: any) {
