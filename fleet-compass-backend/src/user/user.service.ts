@@ -5,6 +5,7 @@ import { LoginUserDto } from './dto/login-user.dto';
 import { Response } from 'express';
 import { UnauthorizedException ,BadRequestException,InternalServerErrorException } from '@nestjs/common';
 import { DatabaseService } from 'src/database/database.service';
+import { CookieOptions } from 'express';
 import * as nodemailer from 'nodemailer';
 import * as validator from 'validator';
 @Injectable()
@@ -32,21 +33,23 @@ export class UserService {
     throw new UnauthorizedException(error.message);
   }
 
+  const cookieOptions: CookieOptions = {
+  httpOnly: true,
+  secure: true,
+  sameSite: 'none',
+  path: '/',
+};
   res.cookie('access_token',
     data.session.access_token,
     {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-      maxAge: 24 * 60 * 60 * 1000, // 1 day
+     ...cookieOptions,
+    maxAge: 24 * 60 * 60 * 1000, // 1 day
     });
 
   res.cookie('refresh_token',
     data.session.refresh_token,
     {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      ...cookieOptions,
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
     });
 
