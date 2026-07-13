@@ -21,7 +21,6 @@ export class UserService {
     });
   }
   
-      
   async login(loginUserDto: LoginUserDto,res :Response) {
 
   const { data, error } =
@@ -125,9 +124,9 @@ const { data: userData, error: createError } = await this.databaseService.supaba
         `,
       });
     } catch (emailError) {
+       console.error('Nodemailer SMTP Error:', emailError);
       await this.databaseService.supabase.auth.admin.deleteUser(userData.user.id);
-      console.error('Nodemailer SMTP Error:', JSON.stringify(emailError, null, 2));
-      throw new BadRequestException('Delivery failed. Email invalid.');
+      throw new BadRequestException('Delivery failed ');
     }
 
   return { success: true,
