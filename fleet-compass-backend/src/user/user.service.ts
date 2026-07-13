@@ -37,8 +37,8 @@ export class UserService {
     {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 60 * 60 * 1000, // 1 hour
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      maxAge: 24 * 60 * 60 * 1000, // 1 day
     });
 
   res.cookie('refresh_token',
@@ -46,7 +46,7 @@ export class UserService {
     {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
     });
 
@@ -84,7 +84,7 @@ const { data: userData, error: createError } = await this.databaseService.supaba
   const { data: linkData, error: linkError } = await this.databaseService.supabase.auth.admin.generateLink({
     type: 'invite',
     email: createUserDto.email,
-    options: { redirectTo: 'http://localhost:5173/confirm-processing' }
+    options: { redirectTo: `${process.env.FRONTEND_URL}/confirm-processing` }
   });
 
   if (linkError) {
@@ -136,11 +136,11 @@ const { data: userData, error: createError } = await this.databaseService.supaba
     }
     res.cookie('access_token', body.access_token, { 
       httpOnly: true, 
-      sameSite: 'lax' 
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', 
     });
     res.cookie('refresh_token', body.refresh_token, { 
       httpOnly: true, 
-      sameSite: 'lax' 
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', 
     });
     return res.status(200).send({ success: true, message: 'Telemetry session locked.' });
   }
@@ -198,7 +198,7 @@ if (!email) throw new BadRequestException('Email is required');
     type: "recovery",
     email,
     options: {
-      redirectTo: "http://localhost:5173/reset-password",
+      redirectTo: `${process.env.FRONTEND_URL}/reset-password1`,
     },
   });
   if (error || !data?.properties?.action_link) {
@@ -259,7 +259,7 @@ const { data, error } =
 await this.databaseService.supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: 'http://localhost:3001/user/callback',
+        redirectTo: `${process.env.BACKEND_URL}/api/user/callback`,
       },
     });
     if (error) throw new BadRequestException(error.message);
@@ -274,9 +274,9 @@ if (!code) throw new BadRequestException('Exchange code missing');
     res.cookie('access_token', data.session.access_token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge: data.session.expires_in * 1000,
     });
-    return res.redirect('http://localhost:5173/App');
+    return res.redirect(`${process.env.FRONTEND_URL}/App`);
 }
 }

@@ -70,12 +70,18 @@ resetPassword(@Body('email') email: string) {
  @UseGuards(AuthGuard)
  async deleteUser(@Req() req: Request,@Res({ passthrough: true }) res: Response){
   await this.userService.deleteProfile(req.user!.id);
-  res.clearCookie('sb-access-token', {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/'
-    });
+  res.clearCookie('access_token',{
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+  path: '/',
+ });
+  res.clearCookie('refresh_token',{
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+  path: '/',
+ });
     return { success: true };
  }
 }
