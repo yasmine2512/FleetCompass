@@ -13,14 +13,13 @@ export class UserService {
   private transporter: nodemailer.Transporter;
   constructor(private readonly databaseService:DatabaseService){
     this.transporter = nodemailer.createTransport({
-      service: 'gmail',
+      host: "smtp.gmail.com",
+      port: 465,
+      secure: true,
       auth: {
         user: process.env.GOOGLE_USER!, 
         pass: process.env.GOOGLE_PASS! ,       
       },
-       connectionTimeout: 10000,
-       greetingTimeout: 10000,
-       socketTimeout: 10000,
     });
   }
   
@@ -142,11 +141,11 @@ const { data: userData, error: createError } = await this.databaseService.supaba
     }
     res.cookie('access_token', body.access_token, { 
       httpOnly: true, 
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', 
+      sameSite: 'none',
     });
     res.cookie('refresh_token', body.refresh_token, { 
       httpOnly: true, 
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', 
+      sameSite: 'none',
     });
     return res.status(200).send({ success: true, message: 'Telemetry session locked.' });
   }
@@ -294,16 +293,7 @@ if (!code) throw new BadRequestException('Exchange code missing');
 }
 
 async testMail(){
-  console.log("hello");
-  console.log("NODE_ENV:", process.env.NODE_ENV);
   try{
-  console.log("GOOGLE_USER:", process.env.GOOGLE_USER);
-  console.log(
-  "GOOGLE_PASS exists:",
-  !!process.env.GOOGLE_PASS,
-  "length:",
-  process.env.GOOGLE_PASS?.length
-);
   await this.transporter.verify();
   console.log("SMTP OK");
   await this.transporter.sendMail({
@@ -312,10 +302,7 @@ async testMail(){
     subject: "Test",
     text: "Hello from Render",
   });
-  return {
-    version: "123456789",
-    time: Date.now(),
-  };}
+  return {message:"succes"};}
   catch(error){
     console.log(error);
   }
