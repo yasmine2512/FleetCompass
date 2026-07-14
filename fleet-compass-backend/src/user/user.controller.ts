@@ -14,8 +14,7 @@ export class UserController {
   @Get("test-email")
   testEmail() {
   console.log("Controller reached");
-  // return this.userService.testMail();
-  return "I AM RUNNING";
+  return this.userService.testMail();
 }
   @Post('login')
   login(@Body() loginUserDto: LoginUserDto,
