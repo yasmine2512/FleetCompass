@@ -274,12 +274,43 @@ if (!code) throw new BadRequestException('Exchange code missing');
     const { data, error } = await this.databaseService.supabase.auth.exchangeCodeForSession(code);
     if (error || !data.session) throw new BadRequestException('Failed to exchange code for session');
 
-    res.cookie('access_token', data.session.access_token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-      maxAge: data.session.expires_in * 1000,
+    const cookieOptions: CookieOptions = {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'none',
+    path: '/',
+  };
+  res.cookie('access_token',
+    data.session.access_token,
+    {
+     ...cookieOptions,
+    maxAge: data.session.expires_in * 1000,
     });
+
     return res.redirect(`${process.env.FRONTEND_URL}/App`);
+}
+
+async testMail(){
+  try{
+  console.log("GOOGLE_USER:", process.env.GOOGLE_USER);
+  console.log(
+  "GOOGLE_PASS exists:",
+  !!process.env.GOOGLE_PASS,
+  "length:",
+  process.env.GOOGLE_PASS?.length
+);
+  await this.transporter.verify();
+  console.log("SMTP OK");
+  await this.transporter.sendMail({
+    from: process.env.GOOGLE_USER,
+    to: process.env.GOOGLE_USER,
+    subject: "Test",
+    text: "Hello from Render",
+  });
+
+  return "sent";}
+  catch(error){
+    console.log(error);
+  }
 }
 }

@@ -10,6 +10,11 @@ import { Throttle } from '@nestjs/throttler';
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
+
+  @Get("test-email")
+async testEmail() {
+  return this.userService.testMail();
+}
   @Post('login')
   login(@Body() loginUserDto: LoginUserDto,
 @Res({ passthrough: true }) res: Response) {
