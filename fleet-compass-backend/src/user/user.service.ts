@@ -14,13 +14,13 @@ export class UserService {
   private transporter: nodemailer.Transporter;
   constructor(private readonly databaseService:DatabaseService){
     this.transporter = nodemailer.createTransport({
-      host: "smtp.gmail.com",
+      host: "pro.turbo-smtp.com",
       port: 587,
       secure: false,
       requireTLS: true,
       auth: {
-        user: process.env.GOOGLE_USER!, 
-        pass: process.env.GOOGLE_PASS! ,       
+        user: process.env.TURBO_CONSUMER_KEY!, 
+        pass: process.env.TURBO_CONSUMER_SECRET! ,       
       },
       connectionTimeout: 10000,
       greetingTimeout: 10000,
@@ -28,33 +28,6 @@ export class UserService {
     });
   }
   
-  async sendEmail(to: string, subject: string, html: string) {
-
-  await axios.post(
-    'https://api.eu.turbo-smtp.com/api/v2/mail/send',
-    {
-      from: {
-        email: process.env.GOOGLE_USER,
-        name: "Fleet Compass"
-      },
-      to: [
-        {
-          email: to
-        }
-      ],
-      subject,
-      html
-    },
-    {
-      headers: {
-        consumerKey: process.env.TURBO_CONSUMER_KEY,
-        consumerSecret: process.env.TURBO_CONSUMER_SECRET,
-        "Content-Type": "application/json"
-      }
-    }
-  );
-}
-
   async login(loginUserDto: LoginUserDto,res :Response) {
 
   const { data, error } =
@@ -325,22 +298,22 @@ if (!code) throw new BadRequestException('Exchange code missing');
 }
 
 async testMail(){
-  try{
-  await this.sendEmail("yasminelear@gmail.com", "Fleet Compass Test Email",
-    `
-          <div style="font-family: Arial;">
-            <h2>Fleet Compass</h2>
-            <p>This is a test email sent from Render using TurboSMTP API.</p>
-            <p>If you received this, the email system works 🚀</p>
-          </div>
-        `
-  );
-  console.log("TurboSMTP response:");
-    return {success: true};
+try{
+  console.log("tring to send ");
+await this.transporter.verify();
+
+await this.transporter.sendMail({
+  from: '"Fleet Compass Operations" <FleetCompassDev@gmail.com>',
+  to: "yasminelear@gmail.com",
+  subject: "TurboSMTP Test",
+  text: "Hello from Fleet Compass",
+});
 }
 catch(error: any){
     console.log(error.message);
+    console.log("STATUS:", error.response?.status);
+  console.log("DATA:", error.response?.data);
+  console.log("HEADERS:", error.response?.headers);
+  throw error;
 }
-
-}
-}
+}}
