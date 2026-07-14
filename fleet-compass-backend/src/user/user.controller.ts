@@ -12,7 +12,8 @@ export class UserController {
 
 
   @Get("test-email")
-async testEmail() {
+  testEmail() {
+  console.log("Controller reached");
   return this.userService.testMail();
 }
   @Post('login')

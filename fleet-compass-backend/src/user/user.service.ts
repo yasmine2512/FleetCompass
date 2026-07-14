@@ -312,8 +312,10 @@ async testMail(){
     subject: "Test",
     text: "Hello from Render",
   });
-
-  return "sent";}
+  return {
+    version: "123456789",
+    time: Date.now(),
+  };}
   catch(error){
     console.log(error);
   }
