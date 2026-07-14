@@ -10,39 +10,6 @@ import { Throttle } from '@nestjs/throttler';
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
-
-  @Get("test-email")
-  testEmail() {
-  console.log("Controller reached");
-  return this.userService.testMail();
-}
-@Get("test-smtp")
-testSMTP(){
-  const net = require("net");
-
-  return new Promise((resolve) => {
-    const socket = net.createConnection(
-      {
-        host: "pro.turbo-smtp.com",
-        port: 2525,
-        timeout: 10000,
-      },
-      () => {
-        socket.end();
-        resolve("SMTP port reachable");
-      }
-    );
-
-    socket.on("timeout", () => {
-      socket.destroy();
-      resolve("TIMEOUT");
-    });
-
-    socket.on("error", (err) => {
-      resolve(err.message);
-    });
-  });
-}
   @Post('login')
   login(@Body() loginUserDto: LoginUserDto,
 @Res({ passthrough: true }) res: Response) {

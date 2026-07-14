@@ -294,23 +294,4 @@ if (!code) throw new BadRequestException('Exchange code missing');
     return res.redirect(`${process.env.FRONTEND_URL}/App`);
 }
 
-async testMail(){
-try{
-  console.log("tring to send ");
-await this.transporter.verify();
-
-await this.transporter.sendMail({
-  from: '"Fleet Compass Operations" <FleetCompassDev@gmail.com>',
-  to: "yasminelear@gmail.com",
-  subject: "TurboSMTP Test",
-  text: "Hello from Fleet Compass",
-});
 }
-catch(error: any){
-    console.log(error.message);
-    console.log("STATUS:", error.response?.status);
-  console.log("DATA:", error.response?.data);
-  console.log("HEADERS:", error.response?.headers);
-  throw error;
-}
-}}
