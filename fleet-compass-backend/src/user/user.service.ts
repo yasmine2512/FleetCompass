@@ -18,6 +18,9 @@ export class UserService {
         user: process.env.GOOGLE_USER!, 
         pass: process.env.GOOGLE_PASS! ,       
       },
+       connectionTimeout: 10000,
+       greetingTimeout: 10000,
+       socketTimeout: 10000,
     });
   }
   
@@ -291,6 +294,8 @@ if (!code) throw new BadRequestException('Exchange code missing');
 }
 
 async testMail(){
+  console.log("hello");
+  console.log("NODE_ENV:", process.env.NODE_ENV);
   try{
   console.log("GOOGLE_USER:", process.env.GOOGLE_USER);
   console.log(
