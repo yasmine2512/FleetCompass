@@ -15,16 +15,13 @@ export class UserService {
   constructor(private readonly databaseService:DatabaseService){
     this.transporter = nodemailer.createTransport({
       host: "pro.turbo-smtp.com",
-      port: 587,
+      port: 2525,
       secure: false,
-      requireTLS: true,
       auth: {
         user: process.env.TURBO_CONSUMER_KEY!, 
         pass: process.env.TURBO_CONSUMER_SECRET! ,       
       },
       connectionTimeout: 10000,
-      greetingTimeout: 10000,
-      socketTimeout: 10000,
     });
   }
   
