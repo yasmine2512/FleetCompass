@@ -141,14 +141,31 @@ const { data: userData, error: createError } = await this.databaseService.supaba
   if (!body.access_token || !body.refresh_token) {
       return res.status(400).send({ message: 'Missing tokens' });
     }
-    res.cookie('access_token', body.access_token, { 
-      httpOnly: true, 
-      sameSite: 'none',
-    });
-    res.cookie('refresh_token', body.refresh_token, { 
-      httpOnly: true, 
-      sameSite: 'none',
-    });
+    const options = {
+    httpOnly:true,
+    secure:true,
+    sameSite:"none" as const,
+    path:"/",
+  };
+
+  res.cookie(
+    "access_token",
+    body.access_token,
+    {
+      ...options,
+      maxAge: 60 * 60 * 1000,
+    }
+  );
+
+  res.cookie(
+    "refresh_token",
+    body.refresh_token,
+    {
+      ...options,
+      maxAge: 30 * 24 * 60 * 60 * 1000,
+    }
+  );
+
     return res.status(200).send({ success: true, message: 'Telemetry session locked.' });
   }
 
@@ -205,7 +222,7 @@ if (!email) throw new BadRequestException('Email is required');
     type: "recovery",
     email,
     options: {
-      redirectTo: `${process.env.FRONTEND_URL}/reset-password1`,
+      redirectTo: `${process.env.FRONTEND_URL}/reset-password`,
     },
   });
   if (error || !data?.properties?.action_link) {
@@ -256,7 +273,7 @@ try{
   </div>
   `,});
   return {message:"succes"}
-}catch (mailError) {
+  }catch (mailError) {
     throw new BadRequestException("Failed to send recovery email");
   }
 } 
