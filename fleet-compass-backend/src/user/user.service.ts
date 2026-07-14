@@ -153,7 +153,7 @@ const { data: userData, error: createError } = await this.databaseService.supaba
     body.access_token,
     {
       ...options,
-      maxAge: 60 * 60 * 1000,
+      maxAge: 24 * 60 * 60 * 1000,
     }
   );
 
@@ -305,9 +305,16 @@ if (!code) throw new BadRequestException('Exchange code missing');
     data.session.access_token,
     {
      ...cookieOptions,
-    maxAge: data.session.expires_in * 1000,
+    maxAge: 24 * 60 * 60 * 1000,
     });
-
+  res.cookie(
+    "refresh_token",
+    data.session.refresh_token,
+    {
+      ...cookieOptions,
+      maxAge:30 * 24 * 60 * 60 * 1000,
+    }
+  );
     return res.redirect(`${process.env.FRONTEND_URL}/App`);
 }
 
