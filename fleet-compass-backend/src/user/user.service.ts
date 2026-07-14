@@ -14,12 +14,16 @@ export class UserService {
   constructor(private readonly databaseService:DatabaseService){
     this.transporter = nodemailer.createTransport({
       host: "smtp.gmail.com",
-      port: 465,
-      secure: true,
+      port: 587,
+      secure: false,
+      requireTLS: true,
       auth: {
         user: process.env.GOOGLE_USER!, 
         pass: process.env.GOOGLE_PASS! ,       
       },
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 10000,
     });
   }
   
