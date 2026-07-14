@@ -8,6 +8,7 @@ import { DatabaseService } from 'src/database/database.service';
 import { CookieOptions } from 'express';
 import * as nodemailer from 'nodemailer';
 import * as validator from 'validator';
+import axios from 'axios';
 @Injectable()
 export class UserService {
   private transporter: nodemailer.Transporter;
@@ -27,6 +28,33 @@ export class UserService {
     });
   }
   
+  async sendEmail(to: string, subject: string, html: string) {
+
+  await axios.post(
+    'https://api.eu.turbo-smtp.com/api/v2/mail/send',
+    {
+      from: {
+        email: process.env.GOOGLE_USER,
+        name: "Fleet Compass"
+      },
+      to: [
+        {
+          email: to
+        }
+      ],
+      subject,
+      html
+    },
+    {
+      headers: {
+        consumerKey: process.env.TURBO_CONSUMER_KEY,
+        consumerSecret: process.env.TURBO_CONSUMER_SECRET,
+        "Content-Type": "application/json"
+      }
+    }
+  );
+}
+
   async login(loginUserDto: LoginUserDto,res :Response) {
 
   const { data, error } =
@@ -298,17 +326,21 @@ if (!code) throw new BadRequestException('Exchange code missing');
 
 async testMail(){
   try{
-  await this.transporter.verify();
-  console.log("SMTP OK");
-  await this.transporter.sendMail({
-    from: process.env.GOOGLE_USER,
-    to: process.env.GOOGLE_USER,
-    subject: "Test",
-    text: "Hello from Render",
-  });
-  return {message:"succes"};}
-  catch(error){
-    console.log(error);
-  }
+  await this.sendEmail("yasminelear@gmail.com", "Fleet Compass Test Email",
+    `
+          <div style="font-family: Arial;">
+            <h2>Fleet Compass</h2>
+            <p>This is a test email sent from Render using TurboSMTP API.</p>
+            <p>If you received this, the email system works 🚀</p>
+          </div>
+        `
+  );
+  console.log("TurboSMTP response:");
+    return {success: true};
+}
+catch(error: any){
+    console.log(error.message);
+}
+
 }
 }
