@@ -162,16 +162,23 @@ useEffect(() => {
 
   const handleTripCompleted = (data: any) => {
     const { tripId, driverId } = data;
+    const completedTrip = trips.find(t => t.id === tripId);
     setTrips(prev =>
       prev.map(t =>
         t.id === tripId ? { ...t, status: "Completed" } : t
       )
     );
     setDrivers((prev: Driver[]) => {
+    const completedDriver = prev.find(d => d.id === driverId);
     const updatedDrivers: Driver[] = prev.map(d =>
       d.id === driverId 
         ? { ...d, status: "Idle", speed: 0, currentTrip: undefined } 
         : d);
+      if (completedDriver) {
+      pushLog(
+        `[DRIVER] ${completedDriver.name} successfully delivered "${completedTrip?.order_name}" and completed the trip.`,
+        "normal");
+    }
     const activeDrivers = updatedDrivers.filter(d => d.status === "En Route");
     if (activeDrivers.length === 0) {
       setKpi(prevKpi => ({ ...prevKpi, avgSpeed: 0 }));
