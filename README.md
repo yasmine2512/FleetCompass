@@ -212,19 +212,20 @@ SUPABASE_SERVICE_ROLE_KEY=
 DATABASE_URL=
 
 # Redis / BullMQ
-REDIS_HOST=localhost
+REDIS_HOST=redis
 REDIS_PORT=6379
 
 # OpenRouteService
 ORS_API_KEY=
 
 # Mail (Nodemailer)
-SMTP_USER=
-SMTP_PASSWORD=
+TURBO_CONSUMER_KEY=
+TURBO_CONSUMER_SECRET=
 
 # App
 PORT
-CLIENT_URL=http://localhost:3000
+FRONTEND_URL=http://localhost:5173
+BACKEND_URL=http://localhost:3001
 ```
 
 ---

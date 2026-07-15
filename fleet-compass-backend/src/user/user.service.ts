@@ -174,8 +174,14 @@ const { data: userData, error: createError } = await this.databaseService.supaba
   }
 
   async logout(res:Response){
-res.clearCookie('access_token');
-  res.clearCookie('refresh_token');
+    const cookieOptions: CookieOptions = {
+  httpOnly: true,
+  secure: true,
+  sameSite: "none",
+  path: "/",
+};
+res.clearCookie('access_token',cookieOptions);
+  res.clearCookie('refresh_token',cookieOptions);
 
   return {
     message: 'Logged out'
