@@ -161,11 +161,8 @@ useEffect(() => {
   };
 
   const handleTripCompleted = (data: any) => {
-    const { tripId, driverId } = data;
-    let completedDriver: Driver | undefined;
-    let completedTrip: Trip | undefined;
+    const { tripId, driverId ,orderName} = data;
     setTrips(prev => {
-    completedTrip = prev.find(t => t.id === tripId);
     return prev.map(t =>
       t.id === tripId
         ? { ...t, status: "Completed" }
@@ -173,22 +170,23 @@ useEffect(() => {
     );
   });
     setDrivers((prev: Driver[]) => {
-    completedDriver = prev.find(d => d.id === driverId);
+    const driver = prev.find(d => d.id === driverId);
     const updatedDrivers: Driver[] = prev.map(d =>
       d.id === driverId 
         ? { ...d, status: "Idle", speed: 0, currentTrip: undefined } 
         : d);
+    if (driver) {
+      pushLog(
+        `[DRIVER] ${driver.name} successfully delivered ${orderName} — status: Idle`,
+        "normal");
+      }
     const activeDrivers = updatedDrivers.filter(d => d.status === "En Route");
     if (activeDrivers.length === 0) {
       setKpi(prevKpi => ({ ...prevKpi, avgSpeed: 0 }));
     }
     return updatedDrivers;
   });
-  if (completedDriver && completedTrip) {
-      pushLog(
-        `[DRIVER] ${completedDriver?.name} successfully delivered "${completedTrip?.order_name}" — status: Idle`,
-        "normal");
-      }
+ 
   };
 
   const handleSocketError = (data: any) => {

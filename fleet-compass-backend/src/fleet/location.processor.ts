@@ -138,8 +138,7 @@ if (pointIndex < route.length - 1) {
         this.fleetEventsService.emitToRoom(`user:${userId}`,'tripCompleted', {
           tripId,
           driverId,
-          status: 'Completed',
-          speed: 0
+          orderName
         });
       }
 
