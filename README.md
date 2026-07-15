@@ -206,7 +206,7 @@ Create a `.env` file based on `.env.example`:
 ```env
 # Supabase
 VITE_SUPABASE_ANON_KEY=
-VITE_SUPABASE_URL
+VITE_SUPABASE_URL=
 SUPABASE_URL=
 SUPABASE_SERVICE_ROLE_KEY=
 DATABASE_URL=
