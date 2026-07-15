@@ -182,13 +182,13 @@ useEffect(() => {
     if (activeDrivers.length === 0) {
       setKpi(prevKpi => ({ ...prevKpi, avgSpeed: 0 }));
     }
-    if (completedDriver && completedTrip) {
+    return updatedDrivers;
+  });
+  if (completedDriver && completedTrip) {
       pushLog(
         `[DRIVER] ${completedDriver?.name} successfully delivered "${completedTrip?.order_name}" — status: Idle`,
         "normal");
       }
-    return updatedDrivers;
-  });
   };
 
   const handleSocketError = (data: any) => {
