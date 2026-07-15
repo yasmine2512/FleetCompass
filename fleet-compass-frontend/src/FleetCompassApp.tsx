@@ -162,14 +162,18 @@ useEffect(() => {
 
   const handleTripCompleted = (data: any) => {
     const { tripId, driverId } = data;
-    const completedTrip = trips.find(t => t.id === tripId);
-    const completedDriver = drivers.find(d => d.id === driverId);
-    setTrips(prev =>
-      prev.map(t =>
-        t.id === tripId ? { ...t, status: "Completed" } : t
-      )
+    let completedDriver: Driver | undefined;
+    let completedTrip: Trip | undefined;
+    setTrips(prev => {
+    completedTrip = prev.find(t => t.id === tripId);
+    return prev.map(t =>
+      t.id === tripId
+        ? { ...t, status: "Completed" }
+        : t
     );
+  });
     setDrivers((prev: Driver[]) => {
+    completedDriver = prev.find(d => d.id === driverId);
     const updatedDrivers: Driver[] = prev.map(d =>
       d.id === driverId 
         ? { ...d, status: "Idle", speed: 0, currentTrip: undefined } 
@@ -178,9 +182,11 @@ useEffect(() => {
     if (activeDrivers.length === 0) {
       setKpi(prevKpi => ({ ...prevKpi, avgSpeed: 0 }));
     }
+    if (completedDriver && completedTrip) {
       pushLog(
-        `[DRIVER] ${completedDriver?.name} successfully delivered "${completedTrip?.order_name}" and completed the trip.`,
+        `[DRIVER] ${completedDriver?.name} successfully delivered "${completedTrip?.order_name}" — status: Idle`,
         "normal");
+      }
     return updatedDrivers;
   });
   };
