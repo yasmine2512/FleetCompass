@@ -163,26 +163,24 @@ useEffect(() => {
   const handleTripCompleted = (data: any) => {
     const { tripId, driverId } = data;
     const completedTrip = trips.find(t => t.id === tripId);
+    const completedDriver = drivers.find(d => d.id === driverId);
     setTrips(prev =>
       prev.map(t =>
         t.id === tripId ? { ...t, status: "Completed" } : t
       )
     );
     setDrivers((prev: Driver[]) => {
-    const completedDriver = prev.find(d => d.id === driverId);
     const updatedDrivers: Driver[] = prev.map(d =>
       d.id === driverId 
         ? { ...d, status: "Idle", speed: 0, currentTrip: undefined } 
         : d);
-      if (completedDriver) {
-      pushLog(
-        `[DRIVER] ${completedDriver.name} successfully delivered "${completedTrip?.order_name}" and completed the trip.`,
-        "normal");
-    }
     const activeDrivers = updatedDrivers.filter(d => d.status === "En Route");
     if (activeDrivers.length === 0) {
       setKpi(prevKpi => ({ ...prevKpi, avgSpeed: 0 }));
     }
+      pushLog(
+        `[DRIVER] ${completedDriver?.name} successfully delivered "${completedTrip?.order_name}" and completed the trip.`,
+        "normal");
     return updatedDrivers;
   });
   };
@@ -227,7 +225,7 @@ useEffect(() => {
     }
     return updatedDrivers;
   });
-    pushLog(`Order ${data.orderName} Canceled`,"normal");
+    pushLog(`[ORDER] Order ${data.orderName} Canceled`,"info");
   }
 
   socket.on("connect", handleConnect);
@@ -376,7 +374,7 @@ const DeleteDriver = (driverId:number,name:string) => {
 try {
     fleetApi.deleteDriver(driverId);
     setDrivers(prev => prev.filter(d => d.id !== driverId));
-    pushLog( `Driver ${name} deleted`, "normal");
+    pushLog( `Driver ${name} deleted`, "info");
   } catch (err) {
     pushLog("Couldn't delete driver", "warn");
   }
