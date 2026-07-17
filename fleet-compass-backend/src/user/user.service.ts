@@ -33,6 +33,8 @@ export class UserService {
       },
       connectionTimeout: 10000,
       greetingTimeout: 30000,
+      logger: true,
+      debug: true,
     });
   }
   
