@@ -6,10 +6,26 @@ import { LoginUserDto } from './dto/login-user.dto';
 import type { Response ,Request} from 'express'
 import { AuthGuard } from './auth.guard';
 import { Throttle } from '@nestjs/throttler';
+import * as net from 'net';
 @Controller('user')
 export class UserController {
   constructor(private readonly userService: UserService) {}
+  @Get('test')
+  test(){
+    const socket = net.createConnection({
+  host: 'smtp.gmail.com',
+  port: 587,
+});
 
+socket.on('connect', () => {
+  console.log('SMTP port 587 reachable');
+  socket.destroy();
+});
+
+socket.on('error', (err) => {
+  console.log('SMTP connection failed:', err.message);
+});
+  }
   @Post('login')
   login(@Body() loginUserDto: LoginUserDto,
 @Res({ passthrough: true }) res: Response) {
