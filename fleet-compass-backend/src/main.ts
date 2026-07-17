@@ -4,8 +4,9 @@ import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import cookieParser from 'cookie-parser';
 import * as dotenv from 'dotenv'
+import * as dns from 'dns';
 dotenv.config();
-
+dns.setDefaultResultOrder('ipv4first');
 async function bootstrap() {
   
   const app = await NestFactory.create(AppModule);
