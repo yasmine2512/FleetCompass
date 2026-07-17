@@ -25,18 +25,17 @@ export class UserService {
     // });
     this.transporter = nodemailer.createTransport({
       host: "smtp.gmail.com",
-      port: 587,
+      port: 465,
       secure: false,
-      family: 4,
       auth: {
         user: process.env.GOOGLE_USER!, 
         pass: process.env.GOOGLE_PASS! ,       
       },
-      connectionTimeout: 60000,
+      connectionTimeout: 40000,
       greetingTimeout: 30000,
       logger: true,
       debug: true,
-    }as any);
+    });
   }
   
   async login(loginUserDto: LoginUserDto,res :Response) {
