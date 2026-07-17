@@ -13,28 +13,15 @@ import axios from 'axios';
 export class UserService {
   private transporter: nodemailer.Transporter;
   constructor(private readonly databaseService:DatabaseService){
-    // this.transporter = nodemailer.createTransport({
-    //   host: "pro.turbo-smtp.com",
-    //   port: 2525,
-    //   secure: false,
-    //   auth: {
-    //     user: process.env.TURBO_CONSUMER_KEY!, 
-    //     pass: process.env.TURBO_CONSUMER_SECRET! ,       
-    //   },
-    //   connectionTimeout: 10000,
-    // });
     this.transporter = nodemailer.createTransport({
-      host: "smtp.gmail.com",
-      port: 465,
+      host: "pro.turbo-smtp.com",
+      port: 2525,
       secure: false,
       auth: {
-        user: process.env.GOOGLE_USER!, 
-        pass: process.env.GOOGLE_PASS! ,       
+        user: process.env.TURBO_CONSUMER_KEY!, 
+        pass: process.env.TURBO_CONSUMER_SECRET! ,       
       },
-      connectionTimeout: 40000,
-      greetingTimeout: 30000,
-      logger: true,
-      debug: true,
+      connectionTimeout: 10000,
     });
   }
   
