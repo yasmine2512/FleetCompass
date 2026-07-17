@@ -7,6 +7,7 @@ import * as dotenv from 'dotenv'
 import * as dns from 'dns';
 dotenv.config();
 dns.setDefaultResultOrder('ipv4first');
+console.log(dns.getDefaultResultOrder());
 async function bootstrap() {
   
   const app = await NestFactory.create(AppModule);

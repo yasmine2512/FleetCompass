@@ -27,15 +27,16 @@ export class UserService {
       host: "smtp.gmail.com",
       port: 587,
       secure: false,
+      family: 4,
       auth: {
         user: process.env.GOOGLE_USER!, 
         pass: process.env.GOOGLE_PASS! ,       
       },
-      connectionTimeout: 10000,
+      connectionTimeout: 60000,
       greetingTimeout: 30000,
       logger: true,
       debug: true,
-    });
+    }as any);
   }
   
   async login(loginUserDto: LoginUserDto,res :Response) {
