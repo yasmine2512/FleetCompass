@@ -1,4 +1,4 @@
-import { useState} from "react";
+import { useState , useEffect} from "react";
 import type { FormState ,Errors,Field} from "./types";
 import { GridCanvas,LogoMark,EyeIcon,StatBadge,FormInput,
 PasswordStrength, SuccessTick} from "./Components";
@@ -27,6 +27,10 @@ export default function FleetCompassAuth() {
     setLoading(false);
     setAgreed(false);
   };
+
+  useEffect(() => {
+  fleetApi.getHealth();
+  },[])
 
   const handleChange = (field: Field, value: string) => {
     setForm(p => ({ ...p, [field]: value }));

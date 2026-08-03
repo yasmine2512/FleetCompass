@@ -202,8 +202,31 @@ async findAll(userId: string, page: number = 1, limit: number = 8,
       [name,phone, user_id]
     );
     const driver = driverRes.rows[0];
-    const lat = 40.7128 + (Math.random() - 0.5) * 0.05;
-    const lng = -74.0060 + (Math.random() - 0.5) * 0.05;
+
+    const locationRes = await client.query(`
+      SELECT
+        ST_Y(point::geometry) AS lat,
+        ST_X(point::geometry) AS lng
+      FROM (
+        SELECT ST_LineInterpolatePoint(route, random()) AS point
+        FROM trips
+        WHERE route IS NOT NULL
+        ORDER BY random()
+        LIMIT 1
+      ) t
+    `);
+
+    let lat: number;
+    let lng: number;
+
+    if (locationRes.rows.length > 0) {
+      lat = Number(locationRes.rows[0].lat);
+      lng = Number(locationRes.rows[0].lng);
+    } else {
+      lat = 40.7128;
+      lng = -74.0060;
+    }
+
     await client.query(
       `
       INSERT INTO driver_locations (driver_id, position)

@@ -8,6 +8,7 @@ export const api = axios.create({
 });
 
 export const fleetApi = {
+  getHealth: () => api.get("/health"),
   getInitialState: () => api.get("/fleets"),
   getDrivers: () => api.get("/fleets/drivers"),
   createDriver: (name: string,phone: string) => api.post("/fleets/drivers", {name,phone}),
