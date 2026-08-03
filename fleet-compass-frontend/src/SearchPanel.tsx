@@ -143,7 +143,7 @@ const handleDriverStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
   return (
     <div className="fixed inset-0 z-[3000] flex items-start justify-center pt-[52px] bg-[rgba(2,6,23,0.78)] backdrop-blur-[6px]"
       onClick={onClose}>
-      <div className="relative flex flex-col w-[820px] max-h-[82vh] bg-[rgba(15,23,42,0.98)] border border-[rgba(51,65,85,0.6)] rounded-[14px] overflow-hidden shadow-[0_0_60px_rgba(99,102,241,0.2)]"
+      <div className="relative flex flex-col w-[820px] max-h-[85vh] bg-[rgba(15,23,42,0.98)] border border-[rgba(51,65,85,0.6)] rounded-[14px] overflow-hidden shadow-[0_0_60px_rgba(99,102,241,0.2)]"
         onClick={e => e.stopPropagation()}>
         {/* ── modal header ── */}
         <div className="flex items-center gap-2.5 px-[18px] py-[14px] h-[45px] border-b border-[rgba(51,65,85,0.4)] flex-shrink-0">
@@ -243,7 +243,7 @@ const handleDriverStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         </div>
 
         {/* ── table area ── */}
-        <div className="overflow-y-auto flex-1 min-h-[380px]">
+        <div className="overflow-y-auto flex-1">
 
       {/* ────── DRIVERS TAB ────── */}
       {tab === "drivers" && (
